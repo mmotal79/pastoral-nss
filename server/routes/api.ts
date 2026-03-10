@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { Product } from '../models/Product.js';
-import { Client } from '../models/Client.js';
-import { Sale } from '../models/Sale.js';
-import { Order } from '../models/Order.js';
-import { Expense } from '../models/Expense.js';
+import { Product } from '../models/Product';
+import { Client } from '../models/Client';
+import { Sale } from '../models/Sale';
+import { Order } from '../models/Order';
+import { Expense } from '../models/Expense';
 
 const router = Router();
 
