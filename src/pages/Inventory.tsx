@@ -1,18 +1,81 @@
+import { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { Plus, Image as ImageIcon, Edit2, PlusCircle, MinusCircle } from 'lucide-react';
+import Modal from '../components/Modal';
 
 export default function Inventory() {
-  const { products } = useAppContext();
+  const { products, addProduct } = useAppContext();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    costUSD: '',
+    priceUSD: '',
+    stock: '',
+    imageUrl: ''
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await addProduct({
+      name: formData.name,
+      description: formData.description,
+      costUSD: Number(formData.costUSD),
+      priceUSD: Number(formData.priceUSD),
+      stock: Number(formData.stock),
+      imageUrl: formData.imageUrl
+    });
+    setIsModalOpen(false);
+    setFormData({ name: '', description: '', costUSD: '', priceUSD: '', stock: '', imageUrl: '' });
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Inventario</h1>
-        <button className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+        >
           <Plus className="w-5 h-5 mr-2" />
           Nuevo Artículo
         </button>
       </div>
+
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Nuevo Artículo">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Nombre</label>
+            <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Descripción</label>
+            <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Costo (USD)</label>
+              <input type="number" step="0.01" required value={formData.costUSD} onChange={e => setFormData({...formData, costUSD: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Precio (USD)</label>
+              <input type="number" step="0.01" required value={formData.priceUSD} onChange={e => setFormData({...formData, priceUSD: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Stock Inicial</label>
+            <input type="number" required value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">URL de Imagen (Opcional)</label>
+            <input type="url" value={formData.imageUrl} onChange={e => setFormData({...formData, imageUrl: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+          </div>
+          <div className="pt-4 flex justify-end space-x-2">
+            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancelar</button>
+            <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Guardar</button>
+          </div>
+        </form>
+      </Modal>
 
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
