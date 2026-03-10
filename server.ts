@@ -5,7 +5,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import apiRoutes from './server/routes/api.js';
+import apiRoutes from './server/routes/api.ts';
 
 dotenv.config();
 
