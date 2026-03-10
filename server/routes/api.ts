@@ -1,11 +1,20 @@
 import { Router } from 'express';
-import { Product } from '../models/Product.ts';
-import { Client } from '../models/Client.ts';
-import { Sale } from '../models/Sale.ts';
-import { Order } from '../models/Order.ts';
-import { Expense } from '../models/Expense.ts';
+import mongoose from 'mongoose';
+import { Product } from '../models/Product.js';
+import { Client } from '../models/Client.js';
+import { Sale } from '../models/Sale.js';
+import { Order } from '../models/Order.js';
+import { Expense } from '../models/Expense.js';
 
 const router = Router();
+
+// Middleware to check DB connection
+router.use((req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({ error: 'La base de datos no está conectada. Verifica la variable MONGODB_URI en Render.' });
+  }
+  next();
+});
 
 // ==========================================
 // PRODUCTS
@@ -14,8 +23,9 @@ router.get('/products', async (req, res) => {
   try {
     const products = await Product.find().sort({ createdAt: -1 });
     res.json(products);
-  } catch (error) {
-    res.status(500).json({ error: 'Error fetching products' });
+  } catch (error: any) {
+    console.error('Error fetching products:', error);
+    res.status(500).json({ error: error.message || 'Error fetching products' });
   }
 });
 
@@ -24,8 +34,9 @@ router.post('/products', async (req, res) => {
     const product = new Product(req.body);
     await product.save();
     res.status(201).json(product);
-  } catch (error) {
-    res.status(400).json({ error: 'Error creating product' });
+  } catch (error: any) {
+    console.error('Error creating product:', error);
+    res.status(400).json({ error: error.message || 'Error creating product' });
   }
 });
 
@@ -33,8 +44,9 @@ router.put('/products/:id', async (req, res) => {
   try {
     const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
     res.json(product);
-  } catch (error) {
-    res.status(400).json({ error: 'Error updating product' });
+  } catch (error: any) {
+    console.error('Error updating product:', error);
+    res.status(400).json({ error: error.message || 'Error updating product' });
   }
 });
 
@@ -42,8 +54,9 @@ router.delete('/products/:id', async (req, res) => {
   try {
     await Product.findByIdAndDelete(req.params.id);
     res.json({ success: true });
-  } catch (error) {
-    res.status(400).json({ error: 'Error deleting product' });
+  } catch (error: any) {
+    console.error('Error deleting product:', error);
+    res.status(400).json({ error: error.message || 'Error deleting product' });
   }
 });
 
@@ -54,8 +67,9 @@ router.get('/clients', async (req, res) => {
   try {
     const clients = await Client.find().sort({ createdAt: -1 });
     res.json(clients);
-  } catch (error) {
-    res.status(500).json({ error: 'Error fetching clients' });
+  } catch (error: any) {
+    console.error('Error fetching clients:', error);
+    res.status(500).json({ error: error.message || 'Error fetching clients' });
   }
 });
 
@@ -64,8 +78,9 @@ router.post('/clients', async (req, res) => {
     const client = new Client(req.body);
     await client.save();
     res.status(201).json(client);
-  } catch (error) {
-    res.status(400).json({ error: 'Error creating client' });
+  } catch (error: any) {
+    console.error('Error creating client:', error);
+    res.status(400).json({ error: error.message || 'Error creating client' });
   }
 });
 
@@ -73,8 +88,9 @@ router.put('/clients/:id', async (req, res) => {
   try {
     const client = await Client.findByIdAndUpdate(req.params.id, req.body, { new: true });
     res.json(client);
-  } catch (error) {
-    res.status(400).json({ error: 'Error updating client' });
+  } catch (error: any) {
+    console.error('Error updating client:', error);
+    res.status(400).json({ error: error.message || 'Error updating client' });
   }
 });
 
@@ -85,8 +101,9 @@ router.get('/sales', async (req, res) => {
   try {
     const sales = await Sale.find().populate('clientId').sort({ date: -1 });
     res.json(sales);
-  } catch (error) {
-    res.status(500).json({ error: 'Error fetching sales' });
+  } catch (error: any) {
+    console.error('Error fetching sales:', error);
+    res.status(500).json({ error: error.message || 'Error fetching sales' });
   }
 });
 
@@ -103,8 +120,9 @@ router.post('/sales', async (req, res) => {
     }
     
     res.status(201).json(sale);
-  } catch (error) {
-    res.status(400).json({ error: 'Error creating sale' });
+  } catch (error: any) {
+    console.error('Error creating sale:', error);
+    res.status(400).json({ error: error.message || 'Error creating sale' });
   }
 });
 
@@ -115,8 +133,9 @@ router.get('/orders', async (req, res) => {
   try {
     const orders = await Order.find().populate('clientId').sort({ orderDate: -1 });
     res.json(orders);
-  } catch (error) {
-    res.status(500).json({ error: 'Error fetching orders' });
+  } catch (error: any) {
+    console.error('Error fetching orders:', error);
+    res.status(500).json({ error: error.message || 'Error fetching orders' });
   }
 });
 
@@ -125,8 +144,9 @@ router.post('/orders', async (req, res) => {
     const order = new Order(req.body);
     await order.save();
     res.status(201).json(order);
-  } catch (error) {
-    res.status(400).json({ error: 'Error creating order' });
+  } catch (error: any) {
+    console.error('Error creating order:', error);
+    res.status(400).json({ error: error.message || 'Error creating order' });
   }
 });
 
@@ -134,8 +154,9 @@ router.put('/orders/:id', async (req, res) => {
   try {
     const order = await Order.findByIdAndUpdate(req.params.id, req.body, { new: true });
     res.json(order);
-  } catch (error) {
-    res.status(400).json({ error: 'Error updating order' });
+  } catch (error: any) {
+    console.error('Error updating order:', error);
+    res.status(400).json({ error: error.message || 'Error updating order' });
   }
 });
 
@@ -146,8 +167,9 @@ router.get('/expenses', async (req, res) => {
   try {
     const expenses = await Expense.find().sort({ date: -1 });
     res.json(expenses);
-  } catch (error) {
-    res.status(500).json({ error: 'Error fetching expenses' });
+  } catch (error: any) {
+    console.error('Error fetching expenses:', error);
+    res.status(500).json({ error: error.message || 'Error fetching expenses' });
   }
 });
 
@@ -156,8 +178,9 @@ router.post('/expenses', async (req, res) => {
     const expense = new Expense(req.body);
     await expense.save();
     res.status(201).json(expense);
-  } catch (error) {
-    res.status(400).json({ error: 'Error creating expense' });
+  } catch (error: any) {
+    console.error('Error creating expense:', error);
+    res.status(400).json({ error: error.message || 'Error creating expense' });
   }
 });
 

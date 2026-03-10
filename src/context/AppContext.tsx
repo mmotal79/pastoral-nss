@@ -152,9 +152,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (res.ok) {
         const newProduct = await res.json();
         setProducts(prev => [{ ...newProduct, id: newProduct._id }, ...prev]);
+        alert('Producto guardado exitosamente');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al guardar el producto: ${errorData.error || res.statusText}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding product:', error);
+      alert(`Error de conexión: ${error.message}`);
     }
   };
 
@@ -168,9 +173,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (res.ok) {
         const newClient = await res.json();
         setClients(prev => [{ ...newClient, id: newClient._id }, ...prev]);
+        alert('Cliente guardado exitosamente');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al guardar el cliente: ${errorData.error || res.statusText}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding client:', error);
+      alert(`Error de conexión: ${error.message}`);
     }
   };
 
@@ -190,9 +200,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           const data = await productsRes.json();
           setProducts(data.map((d: any) => ({ ...d, id: d._id })));
         }
+        alert('Venta guardada exitosamente');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al guardar la venta: ${errorData.error || res.statusText}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding sale:', error);
+      alert(`Error de conexión: ${error.message}`);
     }
   };
 
@@ -206,9 +221,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (res.ok) {
         const newExpense = await res.json();
         setExpenses(prev => [{ ...newExpense, id: newExpense._id }, ...prev]);
+        alert('Gasto guardado exitosamente');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al guardar el gasto: ${errorData.error || res.statusText}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding expense:', error);
+      alert(`Error de conexión: ${error.message}`);
     }
   };
 
@@ -222,9 +242,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (res.ok) {
         const newOrder = await res.json();
         setOrders(prev => [{ ...newOrder, id: newOrder._id }, ...prev]);
+        alert('Encargo guardado exitosamente');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al guardar el encargo: ${errorData.error || res.statusText}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding order:', error);
+      alert(`Error de conexión: ${error.message}`);
     }
   };
 
