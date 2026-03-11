@@ -7,7 +7,7 @@ import html2canvas from 'html2canvas';
 import Modal from '../components/Modal';
 
 export default function Sales() {
-  const { sales, clients, products, addSale, updateSale } = useAppContext();
+  const { sales, clients, products, addSale, updateSale, settings } = useAppContext();
   const [selectedTicket, setSelectedTicket] = useState<Sale | null>(null);
   const [paymentModalSale, setPaymentModalSale] = useState<Sale | null>(null);
   const ticketRef = useRef<HTMLDivElement>(null);
@@ -221,7 +221,9 @@ export default function Sales() {
         const link = document.createElement('a');
         link.href = imgData;
         const ticketId = selectedTicket.id || selectedTicket._id || 'ticket';
-        link.download = `Factura_${ticketId}_${format(new Date(), 'yyyyMMdd')}.png`;
+        const clientName = getClient(selectedTicket.clientId)?.name?.replace(/[^a-zA-Z0-9]/g, '_') || 'Cliente';
+        const dateStr = format(new Date(selectedTicket.date), 'ddMMyy');
+        link.download = `Factura_${clientName}_${dateStr}_${ticketId}.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -268,7 +270,9 @@ export default function Sales() {
           const link = document.createElement('a');
           link.href = imgData;
           const ticketId = sale.id || sale._id || 'ticket';
-          link.download = `Factura_${ticketId}_${format(new Date(), 'yyyyMMdd')}.png`;
+          const clientName = client?.name?.replace(/[^a-zA-Z0-9]/g, '_') || 'Cliente';
+          const dateStr = format(new Date(sale.date), 'ddMMyy');
+          link.download = `Factura_${clientName}_${dateStr}_${ticketId}.png`;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
@@ -376,7 +380,7 @@ export default function Sales() {
           </div>
 
           {tempItems.length > 0 && (
-            <div className="mt-4 border rounded-md overflow-hidden">
+            <div className="mt-4 border rounded-md overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -654,7 +658,12 @@ export default function Sales() {
             <div className="overflow-y-auto">
               <div className="p-6 font-mono text-sm" style={{ backgroundColor: '#ffffff', color: '#000000' }} ref={ticketRef}>
                 <div className="text-center mb-6">
-                <h2 className="text-xl font-bold" style={{ color: '#000000' }}>PASTORAL DE PEQUEÑAS COMUNIDADES NSS</h2>
+                {settings?.logoUrl && (
+                  <div className="flex justify-center mb-4">
+                    <img src={settings.logoUrl} alt="Logo" style={{ maxHeight: '80px', objectFit: 'contain' }} crossOrigin="anonymous" />
+                  </div>
+                )}
+                <h2 className="text-xl font-bold" style={{ color: '#000000' }}>{settings?.companyName || 'PASTORAL DE PEQUEÑAS COMUNIDADES NSS'}</h2>
                 <p style={{ color: '#6b7280' }}>Ticket de Venta #{(selectedTicket.id || selectedTicket._id || '').padStart(5, '0')}</p>
                 <p style={{ color: '#6b7280' }}>{format(new Date(selectedTicket.date), 'dd/MM/yyyy HH:mm')}</p>
               </div>

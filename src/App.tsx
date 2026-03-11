@@ -9,6 +9,7 @@ import Expenses from './pages/Expenses';
 import Orders from './pages/Orders';
 import Login from './pages/Login';
 import Users from './pages/Users';
+import Settings from './pages/Settings';
 import { AppProvider, useAppContext } from './context/AppContext';
 
 function ProtectedRoutes() {
@@ -38,7 +39,12 @@ function ProtectedRoutes() {
         <Route path="sales" element={<Sales />} />
         <Route path="expenses" element={<Expenses />} />
         <Route path="orders" element={<Orders />} />
-        {currentUser.role === 'admin' && <Route path="users" element={<Users />} />}
+        {currentUser.role === 'admin' && (
+          <>
+            <Route path="users" element={<Users />} />
+            <Route path="settings" element={<Settings />} />
+          </>
+        )}
       </Route>
     </Routes>
   );

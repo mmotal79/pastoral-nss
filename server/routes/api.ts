@@ -7,6 +7,7 @@ import { Sale } from '../models/Sale.ts';
 import { Order } from '../models/Order.ts';
 import { Expense } from '../models/Expense.ts';
 import { User } from '../models/User.ts';
+import { Settings } from '../models/Settings.ts';
 
 const router = Router();
 
@@ -97,6 +98,39 @@ router.post('/auth/verify', async (req, res) => {
   } catch (error: any) {
     console.error('Error verifying user:', error);
     res.status(500).json({ error: error.message || 'Error verifying user' });
+  }
+});
+
+// ==========================================
+// SETTINGS
+// ==========================================
+router.get('/settings', async (req, res) => {
+  try {
+    let settings = await Settings.findOne();
+    if (!settings) {
+      settings = await Settings.create({ companyName: 'Pastoral de Pequeñas Comunidades', logoUrl: '' });
+    }
+    res.json(settings);
+  } catch (error: any) {
+    console.error('Error fetching settings:', error);
+    res.status(500).json({ error: error.message || 'Error fetching settings' });
+  }
+});
+
+router.put('/settings', async (req, res) => {
+  try {
+    let settings = await Settings.findOne();
+    if (settings) {
+      settings.companyName = req.body.companyName || settings.companyName;
+      settings.logoUrl = req.body.logoUrl !== undefined ? req.body.logoUrl : settings.logoUrl;
+      await settings.save();
+    } else {
+      settings = await Settings.create(req.body);
+    }
+    res.json(settings);
+  } catch (error: any) {
+    console.error('Error updating settings:', error);
+    res.status(500).json({ error: error.message || 'Error updating settings' });
   }
 });
 

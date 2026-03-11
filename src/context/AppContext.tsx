@@ -85,6 +85,11 @@ export interface Order {
   status: 'pending' | 'in_progress' | 'completed' | 'transferred_to_sale';
 }
 
+export interface Settings {
+  companyName: string;
+  logoUrl: string;
+}
+
 interface AppContextType {
   currentUser: User | null;
   users: User[];
@@ -93,11 +98,13 @@ interface AppContextType {
   sales: Sale[];
   expenses: Expense[];
   orders: Order[];
+  settings: Settings | null;
   loading: boolean;
   authLoading: boolean;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   refreshData: () => Promise<void>;
+  updateSettings: (settings: Partial<Settings>) => Promise<void>;
   addUser: (user: Partial<User>) => Promise<void>;
   updateUser: (id: string, user: Partial<User>) => Promise<void>;
   addProduct: (product: Partial<Product>) => Promise<void>;
@@ -122,8 +129,31 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [sales, setSales] = useState<Sale[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [authLoading, setAuthLoading] = useState(true);
+
+  // Fetch settings and products immediately, even if not logged in
+  useEffect(() => {
+    const fetchPublicData = async () => {
+      try {
+        const [settingsRes, productsRes] = await Promise.all([
+          fetch('/api/settings'),
+          fetch('/api/products')
+        ]);
+        if (settingsRes.ok) {
+          setSettings(await settingsRes.json());
+        }
+        if (productsRes.ok) {
+          const data = await productsRes.json();
+          setProducts(data.map((d: any) => ({ ...d, id: d._id })));
+        }
+      } catch (error) {
+        console.error('Error fetching public data:', error);
+      }
+    };
+    fetchPublicData();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -181,10 +211,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [usersRes, clientsRes, productsRes, salesRes, expensesRes, ordersRes] = await Promise.all([
+      const [usersRes, clientsRes, salesRes, expensesRes, ordersRes] = await Promise.all([
         fetch('/api/users'),
         fetch('/api/clients'),
-        fetch('/api/products'),
         fetch('/api/sales'),
         fetch('/api/expenses'),
         fetch('/api/orders')
@@ -197,10 +226,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (clientsRes.ok) {
         const data = await clientsRes.json();
         setClients(data.map((d: any) => ({ ...d, id: d._id })));
-      }
-      if (productsRes.ok) {
-        const data = await productsRes.json();
-        setProducts(data.map((d: any) => ({ ...d, id: d._id })));
       }
       if (salesRes.ok) {
         const data = await salesRes.json();
@@ -218,6 +243,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateSettings = async (newSettings: Partial<Settings>) => {
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSettings)
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setSettings(updated);
+        alert('Configuración guardada exitosamente');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al guardar configuración: ${errorData.error || res.statusText}`);
+      }
+    } catch (error: any) {
+      console.error('Error updating settings:', error);
+      alert(`Error de conexión: ${error.message}`);
     }
   };
 
@@ -481,8 +527,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AppContext.Provider value={{ 
-      currentUser, users, clients, products, sales, expenses, orders, loading, authLoading,
-      loginWithGoogle, logout, refreshData: fetchData, addUser, updateUser, addProduct, updateProduct, addClient, updateClient, addSale, updateSale,
+      currentUser, users, clients, products, sales, expenses, orders, settings, loading, authLoading,
+      loginWithGoogle, logout, refreshData: fetchData, updateSettings, addUser, updateUser, addProduct, updateProduct, addClient, updateClient, addSale, updateSale,
       addExpense, updateExpense, addOrder, updateOrder
     }}>
       {children}
