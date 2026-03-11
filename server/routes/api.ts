@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import nodemailer from 'nodemailer';
-import { Product } from '../models/Product.js';
-import { Client } from '../models/Client.js';
-import { Sale } from '../models/Sale.js';
-import { Order } from '../models/Order.js';
-import { Expense } from '../models/Expense.js';
-import { User } from '../models/User.js';
+import { Product } from '../models/Product.ts';
+import { Client } from '../models/Client.ts';
+import { Sale } from '../models/Sale.ts';
+import { Order } from '../models/Order.ts';
+import { Expense } from '../models/Expense.ts';
+import { User } from '../models/User.ts';
 
 const router = Router();
 
