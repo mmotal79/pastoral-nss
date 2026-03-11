@@ -647,64 +647,64 @@ export default function Sales() {
 
       {/* Modal Ticket / Factura */}
       {selectedTicket && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+          <div className="rounded-lg shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" style={{ backgroundColor: '#ffffff' }}>
             
             {/* Contenedor del Ticket para html2canvas */}
             <div className="overflow-y-auto">
-              <div className="p-6 font-mono text-sm bg-white" ref={ticketRef}>
+              <div className="p-6 font-mono text-sm" style={{ backgroundColor: '#ffffff', color: '#000000' }} ref={ticketRef}>
                 <div className="text-center mb-6">
-                <h2 className="text-xl font-bold">PASTORAL DE PEQUEÑAS COMUNIDADES NSS</h2>
-                <p className="text-gray-500">Ticket de Venta #{(selectedTicket.id || selectedTicket._id || '').padStart(5, '0')}</p>
-                <p className="text-gray-500">{format(new Date(selectedTicket.date), 'dd/MM/yyyy HH:mm')}</p>
+                <h2 className="text-xl font-bold" style={{ color: '#000000' }}>PASTORAL DE PEQUEÑAS COMUNIDADES NSS</h2>
+                <p style={{ color: '#6b7280' }}>Ticket de Venta #{(selectedTicket.id || selectedTicket._id || '').padStart(5, '0')}</p>
+                <p style={{ color: '#6b7280' }}>{format(new Date(selectedTicket.date), 'dd/MM/yyyy HH:mm')}</p>
               </div>
               
-              <div className="mb-4 border-b border-dashed border-gray-300 pb-4">
-                <p><strong>Cliente:</strong> {getClient(selectedTicket.clientId)?.name}</p>
-                <p><strong>Teléfono:</strong> {getClient(selectedTicket.clientId)?.phone}</p>
+              <div className="mb-4 border-b border-dashed pb-4" style={{ borderColor: '#d1d5db' }}>
+                <p><strong style={{ color: '#000000' }}>Cliente:</strong> {getClient(selectedTicket.clientId)?.name}</p>
+                <p><strong style={{ color: '#000000' }}>Teléfono:</strong> {getClient(selectedTicket.clientId)?.phone}</p>
               </div>
 
-              <div className="mb-4 border-b border-dashed border-gray-300 pb-4">
+              <div className="mb-4 border-b border-dashed pb-4" style={{ borderColor: '#d1d5db' }}>
                 <table className="w-full">
                   <thead>
                     <tr className="text-left">
-                      <th>Cant</th>
-                      <th>Artículo</th>
-                      <th className="text-right">Total</th>
+                      <th style={{ color: '#000000' }}>Cant</th>
+                      <th style={{ color: '#000000' }}>Artículo</th>
+                      <th className="text-right" style={{ color: '#000000' }}>Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {selectedTicket.items.map((item, idx) => (
                       <tr key={idx}>
-                        <td>{item.quantity}</td>
-                        <td>{item.name}</td>
-                        <td className="text-right">${(item.quantity * (item.priceUSD || item.price || 0)).toFixed(2)}</td>
+                        <td style={{ color: '#000000' }}>{item.quantity}</td>
+                        <td style={{ color: '#000000' }}>{item.name}</td>
+                        <td className="text-right" style={{ color: '#000000' }}>${(item.quantity * (item.priceUSD || item.price || 0)).toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
 
-              <div className="mb-4 border-b border-dashed border-gray-300 pb-4 text-right">
-                <p className="text-lg font-bold">TOTAL: ${selectedTicket.totalUSD.toFixed(2)}</p>
+              <div className="mb-4 border-b border-dashed pb-4 text-right" style={{ borderColor: '#d1d5db' }}>
+                <p className="text-lg font-bold" style={{ color: '#000000' }}>TOTAL: ${selectedTicket.totalUSD.toFixed(2)}</p>
               </div>
 
               <div className="mb-4">
-                <h3 className="font-bold mb-2">Historial de Pagos (Abonos):</h3>
+                <h3 className="font-bold mb-2" style={{ color: '#000000' }}>Historial de Pagos (Abonos):</h3>
                 {selectedTicket.payments.length > 0 ? (
                   <ul className="space-y-2">
                     {selectedTicket.payments.map(p => (
-                      <li key={p.id} className="text-xs bg-gray-50 p-2 rounded">
+                      <li key={p.id} className="text-xs p-2 rounded" style={{ backgroundColor: '#f9fafb' }}>
                         <div className="flex justify-between">
-                          <span>{format(new Date(p.date), 'dd/MM/yy')}</span>
-                          <span className="font-bold text-green-600">+${p.amountUSD.toFixed(2)}</span>
+                          <span style={{ color: '#000000' }}>{format(new Date(p.date), 'dd/MM/yy')}</span>
+                          <span className="font-bold" style={{ color: '#16a34a' }}>+${p.amountUSD.toFixed(2)}</span>
                         </div>
-                        <div className="text-gray-500 flex justify-between mt-1">
+                        <div className="flex justify-between mt-1" style={{ color: '#6b7280' }}>
                           <span>{getPaymentMethodLabel(p.method)} {p.bank ? `(${p.bank})` : ''}</span>
                           {p.amountVED > 0 && <span>Bs. {p.amountVED.toFixed(2)} (Tasa: {p.exchangeRate})</span>}
                         </div>
                         {(p.changeUSD || p.savedCreditUSD) ? (
-                          <div className="text-blue-600 mt-1">
+                          <div className="mt-1" style={{ color: '#2563eb' }}>
                             {p.changeUSD ? `Vuelto: $${p.changeUSD.toFixed(2)}` : ''}
                             {p.savedCreditUSD ? `Abono a favor: $${p.savedCreditUSD.toFixed(2)}` : ''}
                           </div>
@@ -713,33 +713,35 @@ export default function Sales() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-gray-500 italic">No hay pagos registrados.</p>
+                  <p className="italic" style={{ color: '#6b7280' }}>No hay pagos registrados.</p>
                 )}
               </div>
 
               <div className="text-right text-lg">
-                <p>Pagado: <span className="text-green-600">${calculatePaid(selectedTicket).toFixed(2)}</span></p>
-                <p className="font-bold">DEUDA: <span className="text-red-600">${Math.max(0, selectedTicket.totalUSD - calculatePaid(selectedTicket)).toFixed(2)}</span></p>
+                <p style={{ color: '#000000' }}>Pagado: <span style={{ color: '#16a34a' }}>${calculatePaid(selectedTicket).toFixed(2)}</span></p>
+                <p className="font-bold" style={{ color: '#000000' }}>DEUDA: <span style={{ color: '#dc2626' }}>${Math.max(0, selectedTicket.totalUSD - calculatePaid(selectedTicket)).toFixed(2)}</span></p>
               </div>
               
-              <div className="mt-8 text-center text-gray-500 text-xs">
+              <div className="mt-8 text-center text-xs" style={{ color: '#6b7280' }}>
                 <p>¡Gracias por su compra!</p>
               </div>
             </div>
             </div>
             
-            <div className="bg-gray-50 p-4 border-t flex flex-col space-y-2">
+            <div className="p-4 border-t flex flex-col space-y-2" style={{ backgroundColor: '#f9fafb', borderColor: '#e5e7eb' }}>
               <div className="flex justify-between items-center space-x-2">
                 <button 
                   onClick={handleDownloadTicket}
-                  className="flex-1 flex items-center justify-center px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm"
+                  className="flex-1 flex items-center justify-center px-4 py-2 text-white rounded text-sm"
+                  style={{ backgroundColor: '#4f46e5' }}
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Descargar PNG
                 </button>
                 <button 
                   onClick={() => handleSendWhatsAppTicket(selectedTicket!)}
-                  className="flex-1 flex items-center justify-center px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
+                  className="flex-1 flex items-center justify-center px-4 py-2 text-white rounded text-sm"
+                  style={{ backgroundColor: '#22c55e' }}
                 >
                   <MessageCircle className="w-4 h-4 mr-2" />
                   Enviar por WA
@@ -747,7 +749,8 @@ export default function Sales() {
               </div>
               <button 
                 onClick={() => setSelectedTicket(null)}
-                className="w-full px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm"
+                className="w-full px-4 py-2 text-gray-800 rounded text-sm"
+                style={{ backgroundColor: '#e5e7eb' }}
               >
                 Cerrar
               </button>
