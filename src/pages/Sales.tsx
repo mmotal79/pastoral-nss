@@ -16,41 +16,70 @@ export default function Sales() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     clientId: '',
+    date: format(new Date(), 'yyyy-MM-dd')
+  });
+  
+  const [tempItems, setTempItems] = useState<{productId: string, name: string, quantity: number, priceUSD: number}[]>([]);
+  const [currentItem, setCurrentItem] = useState({
     productId: '',
     quantity: '1',
-    priceUSD: '',
-    date: format(new Date(), 'yyyy-MM-dd')
+    priceUSD: ''
   });
 
   const handleProductChange = (productId: string) => {
     const product = products.find(p => p.id === productId);
-    setFormData({
-      ...formData,
+    setCurrentItem({
+      ...currentItem,
       productId,
       priceUSD: product ? product.priceUSD.toString() : ''
     });
   };
 
+  const handleAddItem = () => {
+    const product = products.find(p => p.id === currentItem.productId);
+    if (!product || !currentItem.quantity || !currentItem.priceUSD) return;
+    
+    setTempItems([...tempItems, {
+      productId: product.id!,
+      name: product.name,
+      quantity: Number(currentItem.quantity),
+      priceUSD: Number(currentItem.priceUSD)
+    }]);
+    
+    setCurrentItem({ productId: '', quantity: '1', priceUSD: '' });
+  };
+
+  const handleRemoveItem = (index: number) => {
+    setTempItems(tempItems.filter((_, i) => i !== index));
+  };
+
+  const calculateTotalUSD = () => {
+    return tempItems.reduce((acc, item) => acc + (item.quantity * item.priceUSD), 0);
+  };
+
   const handleNewSaleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const product = products.find(p => p.id === formData.productId);
-    if (!product) return;
+    if (tempItems.length === 0) {
+      alert('Debe agregar al menos un artículo a la venta.');
+      return;
+    }
     
     await addSale({
       clientId: formData.clientId,
       date: new Date(formData.date).toISOString(),
-      items: [{
-        productId: product.id,
-        name: product.name,
-        quantity: Number(formData.quantity),
-        price: Number(formData.priceUSD)
-      }],
-      totalUSD: Number(formData.quantity) * Number(formData.priceUSD),
+      items: tempItems.map(item => ({
+        productId: item.productId,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.priceUSD
+      })),
+      totalUSD: calculateTotalUSD(),
       status: 'pending',
       payments: []
     });
     setIsModalOpen(false);
-    setFormData({ clientId: '', productId: '', quantity: '1', priceUSD: '', date: format(new Date(), 'yyyy-MM-dd') });
+    setFormData({ clientId: '', date: format(new Date(), 'yyyy-MM-dd') });
+    setTempItems([]);
   };
 
   // Filters state
@@ -147,7 +176,8 @@ export default function Sales() {
       return;
     }
     const debt = sale.totalUSD - calculatePaid(sale);
-    const message = `Hola ${client.name}, te recordamos amablemente que tienes un saldo pendiente de $${debt.toFixed(2)} por tus compras en Pastoral de Pequeñas Comunidades NSS. ¡Gracias!`;
+    const paymentLink = "https://tu-enlace-de-pago.com"; // Reemplazar con el enlace real
+    const message = `Hola ${client.name}, te recordamos amablemente que tienes un saldo pendiente de $${debt.toFixed(2)} por tus compras en Pastoral de Pequeñas Comunidades NSS. Puedes realizar tu pago a través del siguiente enlace: ${paymentLink} ¡Gracias!`;
     const whatsappUrl = `https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
@@ -171,16 +201,40 @@ export default function Sales() {
     }
   };
 
-  const handleSendWhatsAppTicket = () => {
-    if (!selectedTicket) return;
-    const client = getClient(selectedTicket.clientId);
+  const handleSendWhatsAppTicket = (sale: Sale) => {
+    const client = getClient(sale.clientId);
     if (!client?.phone) {
       alert('El cliente no tiene número de teléfono registrado.');
       return;
     }
-    const message = `Hola ${client.name}, adjunto el recibo de tu pago/compra en Pastoral de Pequeñas Comunidades NSS. (Por favor, adjunta la imagen descargada en este chat).`;
-    const whatsappUrl = `https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
+    
+    // Si el ticket no está seleccionado (abierto en el modal), lo seleccionamos para que se renderice
+    if (selectedTicket?.id !== sale.id) {
+      setSelectedTicket(sale);
+    }
+    
+    // Esperamos a que el modal se renderice para poder capturar el canvas
+    setTimeout(async () => {
+      if (ticketRef.current) {
+        try {
+          const canvas = await html2canvas(ticketRef.current, { scale: 2 });
+          const imgData = canvas.toDataURL('image/png');
+          
+          const link = document.createElement('a');
+          link.href = imgData;
+          link.download = `Factura_${sale.id}_${format(new Date(), 'yyyyMMdd')}.png`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } catch (error) {
+          console.error('Error generating image:', error);
+        }
+      }
+      
+      const message = `Hola ${client.name}, adjunto el recibo de tu pago/compra en Pastoral de Pequeñas Comunidades NSS. (Por favor, adjunta la imagen que se acaba de descargar en este chat).`;
+      const whatsappUrl = `https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+    }, 300);
   };
 
   const getPaymentMethodLabel = (method: string) => {
@@ -228,37 +282,87 @@ export default function Sales() {
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Nueva Venta">
         <form onSubmit={handleNewSaleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Cliente</label>
-            <select required value={formData.clientId} onChange={e => setFormData({...formData, clientId: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border">
-              <option value="">Seleccione un cliente</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Producto</label>
-            <select required value={formData.productId} onChange={e => handleProductChange(e.target.value)} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border">
-              <option value="">Seleccione un producto</option>
-              {products.map(p => <option key={p.id} value={p.id}>{p.name} (Stock: {p.stock})</option>)}
-            </select>
-          </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Cantidad</label>
-              <input type="number" min="1" required value={formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+              <label className="block text-sm font-medium text-gray-700">Cliente</label>
+              <select required value={formData.clientId} onChange={e => setFormData({...formData, clientId: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border">
+                <option value="">Seleccione un cliente</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>)}
+              </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Precio Unitario (USD)</label>
-              <input type="number" step="0.01" required value={formData.priceUSD} onChange={e => setFormData({...formData, priceUSD: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+              <label className="block text-sm font-medium text-gray-700">Fecha</label>
+              <input type="date" required value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Fecha</label>
-            <input type="date" required value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+
+          <div className="border-t border-gray-200 pt-4 mt-4">
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Agregar Artículo</h3>
+            <div className="grid grid-cols-12 gap-2 items-end">
+              <div className="col-span-5">
+                <label className="block text-xs font-medium text-gray-700">Producto</label>
+                <select value={currentItem.productId} onChange={e => handleProductChange(e.target.value)} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border">
+                  <option value="">Seleccione...</option>
+                  {products.map(p => <option key={p.id} value={p.id}>{p.name} (Stock: {p.stock})</option>)}
+                </select>
+              </div>
+              <div className="col-span-3">
+                <label className="block text-xs font-medium text-gray-700">Cant.</label>
+                <input type="number" min="1" value={currentItem.quantity} onChange={e => setCurrentItem({...currentItem, quantity: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+              </div>
+              <div className="col-span-3">
+                <label className="block text-xs font-medium text-gray-700">Precio ($)</label>
+                <input type="number" step="0.01" value={currentItem.priceUSD} onChange={e => setCurrentItem({...currentItem, priceUSD: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+              </div>
+              <div className="col-span-1 pb-1">
+                <button type="button" onClick={handleAddItem} disabled={!currentItem.productId} className="p-2 bg-indigo-100 text-indigo-600 rounded-md hover:bg-indigo-200 disabled:opacity-50">
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="pt-4 flex justify-end space-x-2">
+
+          {tempItems.length > 0 && (
+            <div className="mt-4 border rounded-md overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Producto</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Cant.</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Precio</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Subtotal</th>
+                    <th className="px-4 py-2"></th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {tempItems.map((item, idx) => (
+                    <tr key={idx}>
+                      <td className="px-4 py-2 text-sm text-gray-900">{item.name}</td>
+                      <td className="px-4 py-2 text-sm text-gray-500 text-right">{item.quantity}</td>
+                      <td className="px-4 py-2 text-sm text-gray-500 text-right">${item.priceUSD.toFixed(2)}</td>
+                      <td className="px-4 py-2 text-sm text-gray-900 text-right font-medium">${(item.quantity * item.priceUSD).toFixed(2)}</td>
+                      <td className="px-4 py-2 text-right">
+                        <button type="button" onClick={() => handleRemoveItem(idx)} className="text-red-500 hover:text-red-700">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-gray-50">
+                  <tr>
+                    <td colSpan={3} className="px-4 py-3 text-right text-sm font-bold text-gray-900">Total:</td>
+                    <td className="px-4 py-3 text-right text-sm font-bold text-indigo-600">${calculateTotalUSD().toFixed(2)}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+
+          <div className="pt-4 flex justify-end space-x-2 border-t border-gray-200 mt-4">
             <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancelar</button>
-            <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Guardar Venta</button>
+            <button type="submit" disabled={tempItems.length === 0 || !formData.clientId} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50">Procesar Venta</button>
           </div>
         </form>
       </Modal>
@@ -346,6 +450,14 @@ export default function Sales() {
                     >
                       <Receipt className="w-5 h-5" />
                     </button>
+                    <button 
+                      onClick={() => handleSendWhatsAppTicket(sale)}
+                      className="text-green-600 hover:text-green-900 flex items-center bg-green-50 hover:bg-green-100 px-2 py-1 rounded-md border border-green-200 transition-colors"
+                      title="Enviar Ticket por WhatsApp"
+                    >
+                      <MessageCircle className="w-4 h-4 mr-1" />
+                      <span className="text-xs font-medium">Enviar Ticket</span>
+                    </button>
                     {sale.status === 'pending' && (
                       <>
                         <button 
@@ -357,10 +469,11 @@ export default function Sales() {
                         </button>
                         <button 
                           onClick={() => handleWhatsAppReminder(sale)}
-                          className="text-green-600 hover:text-green-900 flex items-center"
+                          className="text-green-700 hover:text-green-900 flex items-center bg-green-50 hover:bg-green-100 px-2 py-1 rounded-md border border-green-200 transition-colors"
                           title="Recordar pago por WhatsApp"
                         >
-                          <MessageCircle className="w-5 h-5" />
+                          <MessageCircle className="w-4 h-4 mr-1" />
+                          <span className="text-xs font-medium">Recordar Pago</span>
                         </button>
                       </>
                     )}
@@ -570,7 +683,7 @@ export default function Sales() {
                   Descargar PNG
                 </button>
                 <button 
-                  onClick={handleSendWhatsAppTicket}
+                  onClick={() => handleSendWhatsAppTicket(selectedTicket!)}
                   className="flex-1 flex items-center justify-center px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
                 >
                   <MessageCircle className="w-4 h-4 mr-2" />

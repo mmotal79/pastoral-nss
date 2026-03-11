@@ -16,7 +16,6 @@ export interface Client {
   _id?: string;
   id?: string;
   name: string;
-  documentId: string;
   phone: string;
   email: string;
   address: string;

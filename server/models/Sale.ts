@@ -24,7 +24,7 @@ const saleSchema = new mongoose.Schema({
     priceUSD: { type: Number, required: true }
   }],
   totalUSD: { type: Number, required: true },
-  status: { type: String, enum: ['pending', 'paid'], default: 'pending' },
+  status: { type: String, enum: ['pending', 'paid', 'partial'], default: 'pending' },
   payments: [paymentSchema]
 }, { timestamps: true });
 

@@ -9,7 +9,6 @@ export default function Clients() {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    documentId: '',
     phone: '',
     email: '',
     address: ''
@@ -24,14 +23,13 @@ export default function Clients() {
     }
     setIsModalOpen(false);
     setEditingClient(null);
-    setFormData({ name: '', documentId: '', phone: '', email: '', address: '' });
+    setFormData({ name: '', phone: '', email: '', address: '' });
   };
 
   const openEditModal = (client: Client) => {
     setEditingClient(client);
     setFormData({
       name: client.name,
-      documentId: client.documentId || '',
       phone: client.phone || '',
       email: client.email || '',
       address: client.address || ''
@@ -46,7 +44,7 @@ export default function Clients() {
         <button 
           onClick={() => {
             setEditingClient(null);
-            setFormData({ name: '', documentId: '', phone: '', email: '', address: '' });
+            setFormData({ name: '', phone: '', email: '', address: '' });
             setIsModalOpen(true);
           }}
           className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
@@ -63,12 +61,8 @@ export default function Clients() {
             <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Documento de Identidad</label>
-            <input type="text" value={formData.documentId} onChange={e => setFormData({...formData, documentId: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Teléfono</label>
-            <input type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+            <label className="block text-sm font-medium text-gray-700">Teléfono (Identificador Único)</label>
+            <input type="tel" required value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Email</label>
@@ -90,7 +84,6 @@ export default function Clients() {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Documento</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dirección</th>
@@ -101,7 +94,6 @@ export default function Clients() {
             {clients.map((client) => (
               <tr key={client.id}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{client.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{client.documentId}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{client.phone}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{client.email}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{client.address}</td>
