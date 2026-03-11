@@ -277,7 +277,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (res.ok) {
         const newUser = await res.json();
         setUsers(prev => [{ ...newUser, id: newUser._id }, ...prev]);
-        alert('Usuario guardado exitosamente');
+        
+        let message = 'Usuario guardado exitosamente.';
+        if (newUser.emailStatus?.sent) {
+          message += '\nSe ha enviado un correo electrónico automático informando al usuario sobre su acceso.';
+        } else if (newUser.emailStatus?.simulated) {
+          message += '\n(Simulación) El correo se habría enviado, pero faltan las credenciales EMAIL_USER y EMAIL_PASS en el entorno.';
+        }
+        
+        alert(message);
       } else {
         const errorData = await res.json().catch(() => ({}));
         alert(`Error al guardar el usuario: ${errorData.error || res.statusText}`);

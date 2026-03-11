@@ -107,6 +107,7 @@ export default function Sales() {
   const [filterClient, setFilterClient] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterProduct, setFilterProduct] = useState('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Payment modal state
   const [paymentMethod, setPaymentMethod] = useState('cash_usd');
@@ -424,44 +425,84 @@ export default function Sales() {
         </form>
       </Modal>
 
-      {/* Filters Section */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 space-y-4">
-        <div className="flex items-center text-gray-700 font-medium mb-2">
-          <Filter className="w-5 h-5 mr-2" />
-          Filtros de Búsqueda
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Desde</label>
-            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border" />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Hasta</label>
-            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border" />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Cliente</label>
-            <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)} className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border">
-              <option value="">Todos los clientes</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Estado</label>
-            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border">
-              <option value="">Todos</option>
-              <option value="paid">Pagados</option>
-              <option value="pending">Cuentas por Cobrar</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Producto (Nombre)</label>
-            <div className="relative">
-              <input type="text" value={filterProduct} onChange={(e) => setFilterProduct(e.target.value)} placeholder="Buscar..." className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border pl-8" />
-              <Search className="w-4 h-4 text-gray-400 absolute left-2 top-2.5" />
+      {/* Botón Flotante de Filtros */}
+      <div className="fixed top-20 right-6 z-40">
+        <button
+          onClick={() => setIsFilterOpen(!isFilterOpen)}
+          className="flex items-center justify-center w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform hover:scale-105"
+          title="Filtros de Búsqueda"
+        >
+          <Filter className="w-6 h-6" />
+        </button>
+
+        {isFilterOpen && (
+          <div className="absolute top-16 right-0 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 p-5 z-50 transform transition-all">
+            <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                <Filter className="w-5 h-5 mr-2 text-indigo-600" />
+                Filtros de Búsqueda
+              </h3>
+              <button onClick={() => setIsFilterOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Desde</label>
+                  <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Hasta</label>
+                  <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border" />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Cliente</label>
+                <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)} className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border">
+                  <option value="">Todos los clientes</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Estado</label>
+                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border">
+                  <option value="">Todos</option>
+                  <option value="paid">Pagados</option>
+                  <option value="pending">Cuentas por Cobrar</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Producto (Nombre)</label>
+                <div className="relative">
+                  <input type="text" value={filterProduct} onChange={(e) => setFilterProduct(e.target.value)} placeholder="Buscar..." className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border pl-8" />
+                  <Search className="w-4 h-4 text-gray-400 absolute left-2 top-2.5" />
+                </div>
+              </div>
+
+              <div className="pt-3 mt-2 border-t border-gray-100 flex justify-end space-x-2">
+                <button 
+                  onClick={() => {
+                    setDateFrom(''); setDateTo(''); setFilterClient(''); setFilterStatus(''); setFilterProduct('');
+                  }}
+                  className="px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  Limpiar
+                </button>
+                <button 
+                  onClick={() => setIsFilterOpen(false)}
+                  className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 shadow-sm transition-colors"
+                >
+                  Procesar
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="bg-white shadow rounded-lg overflow-x-auto">

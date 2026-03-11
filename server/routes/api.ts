@@ -48,12 +48,15 @@ const sendInvitationEmail = async (email: string, name: string, role: string) =>
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
       await transporter.sendMail(mailOptions);
       console.log(`Email de invitación enviado a ${email}`);
+      return { sent: true, simulated: false };
     } else {
       console.log('Simulando envío de correo (Credenciales no configuradas):');
       console.log(`Para: ${email}, Asunto: ${mailOptions.subject}`);
+      return { sent: false, simulated: true };
     }
   } catch (error) {
     console.error('Error enviando email de invitación:', error);
+    return { sent: false, simulated: false, error };
   }
 };
 
@@ -150,9 +153,12 @@ router.post('/users', async (req, res) => {
     await user.save();
     
     // Send invitation email
-    await sendInvitationEmail(user.email, user.name, user.role);
+    const emailStatus = await sendInvitationEmail(user.email, user.name, user.role);
     
-    res.status(201).json(user);
+    res.status(201).json({
+      ...user.toObject(),
+      emailStatus
+    });
   } catch (error: any) {
     console.error('Error creating user:', error);
     res.status(400).json({ error: error.message || 'Error creating user' });
