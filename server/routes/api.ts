@@ -12,30 +12,21 @@ import { Settings } from '../models/Settings.ts';
 const router = Router();
 
 // Configure Nodemailer transporter
-/*const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER || 'mmotal@gmail.com',
-    pass: process.env.EMAIL_PASS || 'xijxslqsleecuuuh'
-  }
-});
-*/
-
-// Configure Nodemailer transporter
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
+  host: '74.125.124.108', // IP directa de smtp.gmail.com para evitar líos de red
   port: 465,
-  secure: true, // Use SSL
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   },
-  connectionTimeout: 10000, 
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
   socketTimeout: 10000,
-  dnsTimeout: 10000,
-  // ESTA LÍNEA ES LA CLAVE PARA RENDER:
-  proxy: false,
-  connectionFilters: { family: 4 } // Fuerza el uso de IPv4
+  tls: {
+    // Esto evita que falle por el cambio de nombre del host
+    rejectUnauthorized: false
+  }
 } as any);
 
 // Helper function to send invitation email
