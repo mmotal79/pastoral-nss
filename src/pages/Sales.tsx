@@ -180,8 +180,12 @@ export default function Sales() {
   };
 
   const getClient = (clientId: string | Client) => {
-    const id = typeof clientId === 'string' ? clientId : clientId.id;
-    return clients.find(c => c.id === id);
+    if (!clientId) return undefined;
+    if (typeof clientId === 'object') {
+      const id = clientId._id || clientId.id;
+      return clients.find(c => c.id === id || c._id === id) || clientId;
+    }
+    return clients.find(c => c.id === clientId || c._id === clientId);
   };
 
   const calculatePaid = (sale: Sale) => {
@@ -204,12 +208,13 @@ export default function Sales() {
   const handleDownloadTicket = async () => {
     if (ticketRef.current && selectedTicket) {
       try {
-        const canvas = await html2canvas(ticketRef.current, { scale: 2 });
+        const canvas = await html2canvas(ticketRef.current);
         const imgData = canvas.toDataURL('image/png');
         
         const link = document.createElement('a');
         link.href = imgData;
-        link.download = `Factura_${selectedTicket.id}_${format(new Date(), 'yyyyMMdd')}.png`;
+        const ticketId = selectedTicket.id || selectedTicket._id || 'ticket';
+        link.download = `Factura_${ticketId}_${format(new Date(), 'yyyyMMdd')}.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -227,32 +232,46 @@ export default function Sales() {
       return;
     }
     
+    const currentTicketId = selectedTicket?.id || selectedTicket?._id;
+    const saleId = sale.id || sale._id;
+    
     // Si el ticket no está seleccionado (abierto en el modal), lo seleccionamos para que se renderice
-    if (selectedTicket?.id !== sale.id) {
+    if (currentTicketId !== saleId) {
       setSelectedTicket(sale);
     }
+    
+    // Abrimos la ventana de WhatsApp antes del await para evitar el bloqueador de popups
+    const newWindow = window.open('', '_blank');
     
     // Esperamos a que el modal se renderice para poder capturar el canvas
     setTimeout(async () => {
       if (ticketRef.current) {
         try {
-          const canvas = await html2canvas(ticketRef.current, { scale: 2 });
+          const canvas = await html2canvas(ticketRef.current);
           const imgData = canvas.toDataURL('image/png');
           
           const link = document.createElement('a');
           link.href = imgData;
-          link.download = `Factura_${sale.id}_${format(new Date(), 'yyyyMMdd')}.png`;
+          const ticketId = sale.id || sale._id || 'ticket';
+          link.download = `Factura_${ticketId}_${format(new Date(), 'yyyyMMdd')}.png`;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
         } catch (error) {
           console.error('Error generating image:', error);
+          alert('Hubo un error al generar la imagen del ticket.');
         }
+      } else {
+        alert('No se pudo encontrar el ticket para generar la imagen.');
       }
       
       const message = `Hola ${client.name}, adjunto el recibo de tu pago/compra en Pastoral de Pequeñas Comunidades NSS. (Por favor, adjunta la imagen que se acaba de descargar en este chat).`;
       const whatsappUrl = `https://wa.me/${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
-      window.open(whatsappUrl, '_blank');
+      if (newWindow) {
+        newWindow.location.href = whatsappUrl;
+      } else {
+        window.location.href = whatsappUrl; // Fallback si el popup fue bloqueado
+      }
     }, 300);
   };
 
@@ -446,7 +465,7 @@ export default function Sales() {
               const client = getClient(sale.clientId);
               
               return (
-                <tr key={sale.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedTicket(sale)}>
+                <tr key={sale.id || sale._id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedTicket(sale)}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {format(new Date(sale.date), 'dd MMM yyyy', { locale: es })}
                   </td>
@@ -617,10 +636,11 @@ export default function Sales() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
             
             {/* Contenedor del Ticket para html2canvas */}
-            <div className="p-6 overflow-y-auto font-mono text-sm bg-white" ref={ticketRef}>
-              <div className="text-center mb-6">
+            <div className="overflow-y-auto">
+              <div className="p-6 font-mono text-sm bg-white" ref={ticketRef}>
+                <div className="text-center mb-6">
                 <h2 className="text-xl font-bold">PASTORAL DE PEQUEÑAS COMUNIDADES NSS</h2>
-                <p className="text-gray-500">Ticket de Venta #{selectedTicket.id.padStart(5, '0')}</p>
+                <p className="text-gray-500">Ticket de Venta #{(selectedTicket.id || selectedTicket._id || '').padStart(5, '0')}</p>
                 <p className="text-gray-500">{format(new Date(selectedTicket.date), 'dd/MM/yyyy HH:mm')}</p>
               </div>
               
@@ -643,7 +663,7 @@ export default function Sales() {
                       <tr key={idx}>
                         <td>{item.quantity}</td>
                         <td>{item.name}</td>
-                        <td className="text-right">${(item.quantity * item.price).toFixed(2)}</td>
+                        <td className="text-right">${(item.quantity * (item.priceUSD || item.price || 0)).toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -690,6 +710,7 @@ export default function Sales() {
               <div className="mt-8 text-center text-gray-500 text-xs">
                 <p>¡Gracias por su compra!</p>
               </div>
+            </div>
             </div>
             
             <div className="bg-gray-50 p-4 border-t flex flex-col space-y-2">
