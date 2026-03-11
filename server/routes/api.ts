@@ -27,11 +27,16 @@ const transporter = nodemailer.createTransport({
   port: 465,
   secure: true, // Use SSL
   auth: {
-    user: 'mmotal@gmail.com',
-    pass: 'xijxslqsleecuuuh'
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   },
-  connectionTimeout: 10000, // 10 segundos máximo de espera
-});
+  connectionTimeout: 10000, 
+  socketTimeout: 10000,
+  dnsTimeout: 10000,
+  // ESTA LÍNEA ES LA CLAVE PARA RENDER:
+  proxy: false,
+  connectionFilters: { family: 4 } // Fuerza el uso de IPv4
+} as any);
 
 // Helper function to send invitation email
 const sendInvitationEmail = async (email: string, name: string, role: string) => {
