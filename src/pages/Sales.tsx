@@ -208,7 +208,14 @@ export default function Sales() {
   const handleDownloadTicket = async () => {
     if (ticketRef.current && selectedTicket) {
       try {
-        const canvas = await html2canvas(ticketRef.current);
+        // Opciones robustas para evitar fallos de renderizado
+        const canvas = await html2canvas(ticketRef.current, {
+          scale: 2,
+          backgroundColor: '#ffffff',
+          useCORS: true,
+          allowTaint: true,
+          scrollY: -window.scrollY
+        });
         const imgData = canvas.toDataURL('image/png');
         
         const link = document.createElement('a');
@@ -218,10 +225,12 @@ export default function Sales() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error generating image:', error);
-        alert('Hubo un error al generar la imagen del ticket.');
+        alert(`Hubo un error al generar la imagen del ticket: ${error?.message || error}`);
       }
+    } else {
+      alert('El ticket no está listo para ser descargado.');
     }
   };
 
@@ -247,7 +256,13 @@ export default function Sales() {
     setTimeout(async () => {
       if (ticketRef.current) {
         try {
-          const canvas = await html2canvas(ticketRef.current);
+          const canvas = await html2canvas(ticketRef.current, {
+            scale: 2,
+            backgroundColor: '#ffffff',
+            useCORS: true,
+            allowTaint: true,
+            scrollY: -window.scrollY
+          });
           const imgData = canvas.toDataURL('image/png');
           
           const link = document.createElement('a');
@@ -257,9 +272,9 @@ export default function Sales() {
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
-        } catch (error) {
+        } catch (error: any) {
           console.error('Error generating image:', error);
-          alert('Hubo un error al generar la imagen del ticket.');
+          alert(`Hubo un error al generar la imagen del ticket: ${error?.message || error}`);
         }
       } else {
         alert('No se pudo encontrar el ticket para generar la imagen.');
@@ -272,7 +287,7 @@ export default function Sales() {
       } else {
         window.location.href = whatsappUrl; // Fallback si el popup fue bloqueado
       }
-    }, 300);
+    }, 500); // Aumentamos el tiempo de espera para asegurar el renderizado
   };
 
   const getPaymentMethodLabel = (method: string) => {
