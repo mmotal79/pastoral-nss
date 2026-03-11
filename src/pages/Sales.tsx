@@ -59,27 +59,46 @@ export default function Sales() {
 
   const handleNewSaleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (tempItems.length === 0) {
+    
+    let finalItems = [...tempItems];
+    
+    // Si el usuario seleccionó un producto pero olvidó darle al botón "+", lo añadimos automáticamente
+    if (currentItem.productId && currentItem.quantity && currentItem.priceUSD) {
+      const product = products.find(p => p.id === currentItem.productId);
+      if (product) {
+        finalItems.push({
+          productId: product.id!,
+          name: product.name,
+          quantity: Number(currentItem.quantity),
+          priceUSD: Number(currentItem.priceUSD)
+        });
+      }
+    }
+
+    if (finalItems.length === 0) {
       alert('Debe agregar al menos un artículo a la venta.');
       return;
     }
     
+    const totalUSD = finalItems.reduce((acc, item) => acc + (item.quantity * item.priceUSD), 0);
+
     await addSale({
       clientId: formData.clientId,
       date: new Date(formData.date).toISOString(),
-      items: tempItems.map(item => ({
+      items: finalItems.map(item => ({
         productId: item.productId,
         name: item.name,
         quantity: item.quantity,
-        price: item.priceUSD
+        priceUSD: item.priceUSD
       })),
-      totalUSD: calculateTotalUSD(),
+      totalUSD: totalUSD,
       status: 'pending',
       payments: []
     });
     setIsModalOpen(false);
     setFormData({ clientId: '', date: format(new Date(), 'yyyy-MM-dd') });
     setTempItems([]);
+    setCurrentItem({ productId: '', quantity: '1', priceUSD: '' });
   };
 
   // Filters state
@@ -362,7 +381,7 @@ export default function Sales() {
 
           <div className="pt-4 flex justify-end space-x-2 border-t border-gray-200 mt-4">
             <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancelar</button>
-            <button type="submit" disabled={tempItems.length === 0 || !formData.clientId} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50">Procesar Venta</button>
+            <button type="submit" disabled={(tempItems.length === 0 && !currentItem.productId) || !formData.clientId} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50">Procesar Venta</button>
           </div>
         </form>
       </Modal>
