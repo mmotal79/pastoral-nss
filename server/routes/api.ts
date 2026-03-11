@@ -12,12 +12,25 @@ import { Settings } from '../models/Settings.ts';
 const router = Router();
 
 // Configure Nodemailer transporter
-const transporter = nodemailer.createTransport({
+/*const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER || 'tu_correo@gmail.com',
-    pass: process.env.EMAIL_PASS || 'tu_contraseña_de_aplicacion'
+    user: process.env.EMAIL_USER || 'mmotal@gmail.com',
+    pass: process.env.EMAIL_PASS || 'xijxslqsleecuuuh'
   }
+});
+*/
+
+// Configure Nodemailer transporter
+const transporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true, // Use SSL
+  auth: {
+    user: 'mmotal@gmail.com',
+    pass: 'xijxslqsleecuuuh'
+  },
+  connectionTimeout: 10000, // 10 segundos máximo de espera
 });
 
 // Helper function to send invitation email
