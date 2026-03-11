@@ -1,12 +1,60 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
-import { Product } from '../models/Product.ts';
-import { Client } from '../models/Client.ts';
-import { Sale } from '../models/Sale.ts';
-import { Order } from '../models/Order.ts';
-import { Expense } from '../models/Expense.ts';
+import nodemailer from 'nodemailer';
+import { Product } from '../models/Product.js';
+import { Client } from '../models/Client.js';
+import { Sale } from '../models/Sale.js';
+import { Order } from '../models/Order.js';
+import { Expense } from '../models/Expense.js';
+import { User } from '../models/User.js';
 
 const router = Router();
+
+// Configure Nodemailer transporter
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER || 'tu_correo@gmail.com',
+    pass: process.env.EMAIL_PASS || 'tu_contraseña_de_aplicacion'
+  }
+});
+
+// Helper function to send invitation email
+const sendInvitationEmail = async (email: string, name: string, role: string) => {
+  try {
+    const roleName = role === 'admin' ? 'Administrador' : role === 'manager' ? 'Gerente' : 'Vendedor';
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    
+    const mailOptions = {
+      from: `"Pastoral de Pequeñas Comunidades" <${process.env.EMAIL_USER || 'noreply@ppc.com'}>`,
+      to: email,
+      subject: 'Acceso otorgado al Sistema PPC',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-w: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+          <h2 style="color: #4f46e5; text-align: center;">¡Bienvenido al Sistema PPC!</h2>
+          <p>Hola <strong>${name}</strong>,</p>
+          <p>Se te ha otorgado acceso al Sistema de Gestión y Control de la Pastoral de Pequeñas Comunidades.</p>
+          <p>Tu rol asignado es: <strong>${roleName}</strong></p>
+          <p>Para acceder al sistema, por favor haz clic en el siguiente enlace e inicia sesión utilizando esta misma cuenta de Google (${email}):</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${appUrl}/login" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Acceder al Sistema</a>
+          </div>
+          <p style="color: #6b7280; font-size: 14px;">Si no esperabas este correo, por favor ignóralo.</p>
+        </div>
+      `
+    };
+
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      await transporter.sendMail(mailOptions);
+      console.log(`Email de invitación enviado a ${email}`);
+    } else {
+      console.log('Simulando envío de correo (Credenciales no configuradas):');
+      console.log(`Para: ${email}, Asunto: ${mailOptions.subject}`);
+    }
+  } catch (error) {
+    console.error('Error enviando email de invitación:', error);
+  }
+};
 
 // Middleware to check DB connection
 router.use((req, res, next) => {
@@ -14,6 +62,87 @@ router.use((req, res, next) => {
     return res.status(503).json({ error: 'La base de datos no está conectada. Verifica la variable MONGODB_URI en Render.' });
   }
   next();
+});
+
+// ==========================================
+// AUTH & USERS
+// ==========================================
+router.post('/auth/verify', async (req, res) => {
+  try {
+    const { email, name } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    let user = await User.findOne({ email });
+    
+    // Auto-create admin if it's the specified email
+    if (!user && email === 'mmotal@gmail.com') {
+      user = new User({
+        name: name || 'Administrador',
+        email,
+        role: 'admin',
+        isActive: true
+      });
+      await user.save();
+    }
+
+    if (!user) {
+      return res.status(403).json({ error: 'Acceso denegado. Usuario no autorizado.' });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ error: 'Cuenta desactivada. Contacte al administrador.' });
+    }
+
+    res.json(user);
+  } catch (error: any) {
+    console.error('Error verifying user:', error);
+    res.status(500).json({ error: error.message || 'Error verifying user' });
+  }
+});
+
+router.get('/users', async (req, res) => {
+  try {
+    const users = await User.find().sort({ createdAt: -1 });
+    res.json(users);
+  } catch (error: any) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: error.message || 'Error fetching users' });
+  }
+});
+
+router.post('/users', async (req, res) => {
+  try {
+    const user = new User(req.body);
+    await user.save();
+    
+    // Send invitation email
+    await sendInvitationEmail(user.email, user.name, user.role);
+    
+    res.status(201).json(user);
+  } catch (error: any) {
+    console.error('Error creating user:', error);
+    res.status(400).json({ error: error.message || 'Error creating user' });
+  }
+});
+
+router.put('/users/:id', async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(user);
+  } catch (error: any) {
+    console.error('Error updating user:', error);
+    res.status(400).json({ error: error.message || 'Error updating user' });
+  }
+});
+
+router.delete('/users/:id', async (req, res) => {
+  try {
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Error deleting user:', error);
+    res.status(400).json({ error: error.message || 'Error deleting user' });
+  }
 });
 
 // ==========================================
@@ -126,6 +255,16 @@ router.post('/sales', async (req, res) => {
   }
 });
 
+router.put('/sales/:id', async (req, res) => {
+  try {
+    const sale = await Sale.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(sale);
+  } catch (error: any) {
+    console.error('Error updating sale:', error);
+    res.status(400).json({ error: error.message || 'Error updating sale' });
+  }
+});
+
 // ==========================================
 // ORDERS
 // ==========================================
@@ -181,6 +320,16 @@ router.post('/expenses', async (req, res) => {
   } catch (error: any) {
     console.error('Error creating expense:', error);
     res.status(400).json({ error: error.message || 'Error creating expense' });
+  }
+});
+
+router.put('/expenses/:id', async (req, res) => {
+  try {
+    const expense = await Expense.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(expense);
+  } catch (error: any) {
+    console.error('Error updating expense:', error);
+    res.status(400).json({ error: error.message || 'Error updating expense' });
   }
 });
 

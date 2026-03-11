@@ -1,13 +1,13 @@
-import { useAppContext, Sale } from '../context/AppContext';
+import React, { useState, useRef, useMemo } from 'react';
+import { useAppContext, Sale, Client } from '../context/AppContext';
 import { Plus, MessageCircle, Receipt, DollarSign, Download, X, Search, Filter } from 'lucide-react';
-import { useState, useRef, useMemo } from 'react';
 import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import html2canvas from 'html2canvas';
 import Modal from '../components/Modal';
 
 export default function Sales() {
-  const { sales, clients, products, addSale } = useAppContext();
+  const { sales, clients, products, addSale, updateSale } = useAppContext();
   const [selectedTicket, setSelectedTicket] = useState<Sale | null>(null);
   const [paymentModalSale, setPaymentModalSale] = useState<Sale | null>(null);
   const ticketRef = useRef<HTMLDivElement>(null);
@@ -62,9 +62,78 @@ export default function Sales() {
 
   // Payment modal state
   const [paymentMethod, setPaymentMethod] = useState('cash_usd');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [exchangeRate, setExchangeRate] = useState('');
+  const [bankSender, setBankSender] = useState('');
+  const [bankReceiver, setBankReceiver] = useState('');
+  const [reference, setReference] = useState('');
+  const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [phoneSender, setPhoneSender] = useState('');
+  const [overpaymentAction, setOverpaymentAction] = useState('change'); // 'change' or 'credit'
 
-  const getClient = (clientId: string) => {
-    return clients.find(c => c.id === clientId);
+  const handlePaymentSubmit = async () => {
+    if (!paymentModalSale || !paymentModalSale._id) return;
+
+    const amountUSD = Number(paymentAmount);
+    if (isNaN(amountUSD) || amountUSD <= 0) {
+      alert('Ingrese un monto válido');
+      return;
+    }
+
+    const debt = paymentModalSale.totalUSD - calculatePaid(paymentModalSale);
+    let changeUSD = 0;
+    let savedCreditUSD = 0;
+
+    if (amountUSD > debt) {
+      if (overpaymentAction === 'change') {
+        changeUSD = amountUSD - debt;
+      } else {
+        savedCreditUSD = amountUSD - debt;
+      }
+    }
+
+    const newPayment: any = {
+      date: new Date(paymentDate).toISOString(),
+      amountUSD: Math.min(amountUSD, debt), // Only record up to the debt amount as paid for this sale
+      amountVED: paymentMethod === 'cash_ved' || paymentMethod === 'mobile_payment' || paymentMethod === 'transfer' ? amountUSD * Number(exchangeRate) : 0,
+      exchangeRate: Number(exchangeRate) || 1,
+      method: paymentMethod,
+      changeUSD,
+      savedCreditUSD
+    };
+
+    if (paymentMethod === 'mobile_payment' || paymentMethod === 'transfer') {
+      newPayment.bankSender = bankSender;
+      newPayment.bankReceiver = bankReceiver;
+      newPayment.reference = reference;
+      if (paymentMethod === 'mobile_payment') {
+        newPayment.phoneSender = phoneSender;
+      }
+    }
+
+    const updatedPayments = [...paymentModalSale.payments, newPayment];
+    const newPaidTotal = updatedPayments.reduce((acc, p) => acc + p.amountUSD, 0);
+    const newStatus = newPaidTotal >= paymentModalSale.totalUSD ? 'paid' : 'pending';
+
+    await updateSale(paymentModalSale._id, {
+      payments: updatedPayments,
+      status: newStatus
+    });
+
+    setPaymentModalSale(null);
+    // Reset payment form
+    setPaymentAmount('');
+    setExchangeRate('');
+    setBankSender('');
+    setBankReceiver('');
+    setReference('');
+    setPhoneSender('');
+    setPaymentDate(format(new Date(), 'yyyy-MM-dd'));
+  };
+
+  const getClient = (clientId: string | Client) => {
+    const id = typeof clientId === 'string' ? clientId : clientId.id;
+    return clients.find(c => c.id === id);
   };
 
   const calculatePaid = (sale: Sale) => {
@@ -342,11 +411,11 @@ export default function Sales() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Monto Recibido</label>
-                  <input type="number" placeholder="Ej. 20" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+                  <input type="number" step="0.01" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} placeholder="Ej. 20" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Tasa de Cambio (Bs/USD)</label>
-                  <input type="number" placeholder="Ej. 36.5" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+                  <input type="number" step="0.01" value={exchangeRate} onChange={e => setExchangeRate(e.target.value)} placeholder="Ej. 36.5" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
                 </div>
               </div>
 
@@ -355,24 +424,24 @@ export default function Sales() {
                 <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
                   <div>
                     <label className="block text-xs font-medium text-gray-700">Banco Emisor</label>
-                    <input type="text" placeholder="Ej. Banesco" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+                    <input type="text" value={bankSender} onChange={e => setBankSender(e.target.value)} placeholder="Ej. Banesco" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700">Banco Receptor</label>
-                    <input type="text" placeholder="Ej. Mercantil" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+                    <input type="text" value={bankReceiver} onChange={e => setBankReceiver(e.target.value)} placeholder="Ej. Mercantil" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700">Referencia</label>
-                    <input type="text" placeholder="Últimos 4-6 dígitos" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+                    <input type="text" value={reference} onChange={e => setReference(e.target.value)} placeholder="Últimos 4-6 dígitos" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700">Fecha de Pago</label>
-                    <input type="date" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+                    <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
                   </div>
                   {paymentMethod === 'mobile_payment' && (
                     <div className="col-span-2">
                       <label className="block text-xs font-medium text-gray-700">Teléfono Emisor (Opcional)</label>
-                      <input type="text" placeholder="0414-1234567" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+                      <input type="text" value={phoneSender} onChange={e => setPhoneSender(e.target.value)} placeholder="0414-1234567" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
                     </div>
                   )}
                 </div>
@@ -382,11 +451,11 @@ export default function Sales() {
                 <p className="text-xs text-gray-500 mb-2">Si el monto supera la deuda:</p>
                 <div className="flex items-center space-x-4">
                   <label className="flex items-center text-sm">
-                    <input type="radio" name="overpayment" className="mr-2" defaultChecked />
+                    <input type="radio" name="overpayment" checked={overpaymentAction === 'change'} onChange={() => setOverpaymentAction('change')} className="mr-2" />
                     Entregar Vuelto
                   </label>
                   <label className="flex items-center text-sm">
-                    <input type="radio" name="overpayment" className="mr-2" />
+                    <input type="radio" name="overpayment" checked={overpaymentAction === 'credit'} onChange={() => setOverpaymentAction('credit')} className="mr-2" />
                     Guardar a Favor
                   </label>
                 </div>
@@ -400,10 +469,7 @@ export default function Sales() {
                 Cancelar
               </button>
               <button 
-                onClick={() => {
-                  alert("Prototipo: Abono registrado (Lógica a implementar en Backend)");
-                  setPaymentModalSale(null);
-                }}
+                onClick={handlePaymentSubmit}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
               >
                 Procesar Pago

@@ -1,12 +1,13 @@
-import { useState } from 'react';
-import { useAppContext } from '../context/AppContext';
-import { Plus, ArrowRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { useAppContext, Order } from '../context/AppContext';
+import { Plus, ArrowRight, Edit2 } from 'lucide-react';
 import Modal from '../components/Modal';
 import { format } from 'date-fns';
 
 export default function Orders() {
-  const { orders, clients, addOrder } = useAppContext();
+  const { orders, clients, addOrder, updateOrder, addSale } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [formData, setFormData] = useState({
     clientId: '',
     itemDescription: '',
@@ -16,12 +17,12 @@ export default function Orders() {
     orderDate: format(new Date(), 'yyyy-MM-dd'),
     deliveryDate: format(new Date(), 'yyyy-MM-dd'),
     estimatedCostUSD: '',
-    status: 'pending' as 'pending' | 'in-progress' | 'completed' | 'transferred'
+    status: 'pending' as 'pending' | 'in_progress' | 'completed' | 'transferred_to_sale'
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await addOrder({
+    const orderData = {
       clientId: formData.clientId,
       itemDescription: formData.itemDescription,
       color: formData.color,
@@ -31,8 +32,16 @@ export default function Orders() {
       deliveryDate: new Date(formData.deliveryDate).toISOString(),
       estimatedCostUSD: Number(formData.estimatedCostUSD),
       status: formData.status
-    });
+    };
+
+    if (editingOrder && editingOrder._id) {
+      await updateOrder(editingOrder._id, orderData);
+    } else {
+      await addOrder(orderData);
+    }
+    
     setIsModalOpen(false);
+    setEditingOrder(null);
     setFormData({
       clientId: '', itemDescription: '', color: '', design: '', materials: '',
       orderDate: format(new Date(), 'yyyy-MM-dd'), deliveryDate: format(new Date(), 'yyyy-MM-dd'),
@@ -40,22 +49,61 @@ export default function Orders() {
     });
   };
 
-  const getClientName = (clientId: string) => {
-    return clients.find(c => c.id === clientId)?.name || 'Desconocido';
+  const openEditModal = (order: Order) => {
+    setEditingOrder(order);
+    setFormData({
+      clientId: typeof order.clientId === 'string' ? order.clientId : order.clientId.id || '',
+      itemDescription: order.itemDescription,
+      color: order.color,
+      design: order.design,
+      materials: order.materials,
+      orderDate: format(new Date(order.orderDate), 'yyyy-MM-dd'),
+      deliveryDate: format(new Date(order.deliveryDate), 'yyyy-MM-dd'),
+      estimatedCostUSD: order.estimatedCostUSD.toString(),
+      status: order.status
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleTransferToSale = async (order: Order) => {
+    if (!order._id) return;
+    
+    if (confirm('¿Estás seguro de transferir este encargo a ventas?')) {
+      await addSale({
+        clientId: typeof order.clientId === 'string' ? order.clientId : order.clientId.id || '',
+        date: new Date().toISOString(),
+        items: [{
+          productId: 'encargo_especial', // Placeholder ID for special orders
+          name: `Encargo: ${order.itemDescription}`,
+          quantity: 1,
+          price: order.estimatedCostUSD
+        }],
+        totalUSD: order.estimatedCostUSD,
+        status: 'pending',
+        payments: []
+      });
+      
+      await updateOrder(order._id, { status: 'transferred_to_sale' });
+    }
+  };
+
+  const getClientName = (clientId: any) => {
+    const id = typeof clientId === 'string' ? clientId : clientId.id;
+    return clients.find(c => c.id === id)?.name || 'Desconocido';
   };
 
   const statusColors = {
     'pending': 'bg-yellow-100 text-yellow-800',
-    'in-progress': 'bg-blue-100 text-blue-800',
+    'in_progress': 'bg-blue-100 text-blue-800',
     'completed': 'bg-green-100 text-green-800',
-    'transferred': 'bg-gray-100 text-gray-800',
+    'transferred_to_sale': 'bg-gray-100 text-gray-800',
   };
 
   const statusLabels = {
     'pending': 'Pendiente',
-    'in-progress': 'En Progreso',
+    'in_progress': 'En Progreso',
     'completed': 'Completado',
-    'transferred': 'Transferido a Ventas',
+    'transferred_to_sale': 'Transferido a Ventas',
   };
 
   return (
@@ -63,7 +111,15 @@ export default function Orders() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Encargos Especiales</h1>
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setEditingOrder(null);
+            setFormData({
+              clientId: '', itemDescription: '', color: '', design: '', materials: '',
+              orderDate: format(new Date(), 'yyyy-MM-dd'), deliveryDate: format(new Date(), 'yyyy-MM-dd'),
+              estimatedCostUSD: '', status: 'pending'
+            });
+            setIsModalOpen(true);
+          }}
           className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
         >
           <Plus className="w-5 h-5 mr-2" />
@@ -71,7 +127,7 @@ export default function Orders() {
         </button>
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Nuevo Encargo">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingOrder ? "Editar Encargo" : "Nuevo Encargo"}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">Cliente</label>
@@ -117,8 +173,9 @@ export default function Orders() {
               <label className="block text-sm font-medium text-gray-700">Estado</label>
               <select required value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border">
                 <option value="pending">Pendiente</option>
-                <option value="in-progress">En Progreso</option>
+                <option value="in_progress">En Progreso</option>
                 <option value="completed">Completado</option>
+                <option value="transferred_to_sale">Transferido a Ventas</option>
               </select>
             </div>
           </div>
@@ -156,8 +213,8 @@ export default function Orders() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   <div className="text-xs">
-                    <span className="font-semibold">Encargo:</span> {order.orderDate}<br/>
-                    <span className="font-semibold">Entrega:</span> {order.deliveryDate}
+                    <span className="font-semibold">Encargo:</span> {format(new Date(order.orderDate), 'dd/MM/yyyy')}<br/>
+                    <span className="font-semibold">Entrega:</span> {format(new Date(order.deliveryDate), 'dd/MM/yyyy')}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${order.estimatedCostUSD?.toFixed(2) || '0.00'}</td>
@@ -166,11 +223,13 @@ export default function Orders() {
                     {statusLabels[order.status]}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {order.status !== 'transferred' && (
-                    <button className="text-indigo-600 hover:text-indigo-900 flex items-center text-xs">
-                      Transferir a Ventas
-                      <ArrowRight className="w-4 h-4 ml-1" />
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex items-center space-x-3">
+                  <button onClick={() => openEditModal(order)} className="text-blue-600 hover:text-blue-900" title="Editar Encargo">
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  {order.status !== 'transferred_to_sale' && (
+                    <button onClick={() => handleTransferToSale(order)} className="text-indigo-600 hover:text-indigo-900 flex items-center text-xs" title="Transferir a Ventas">
+                      <ArrowRight className="w-4 h-4" />
                     </button>
                   )}
                 </td>

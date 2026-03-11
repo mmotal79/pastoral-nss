@@ -1,6 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { auth } from '../firebase';
+import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth';
 
 // Types
+export interface User {
+  _id?: string;
+  id?: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'seller' | 'manager';
+  isActive: boolean;
+}
+
 export interface Client {
   _id?: string;
   id?: string;
@@ -76,34 +87,103 @@ export interface Order {
 }
 
 interface AppContextType {
+  currentUser: User | null;
+  users: User[];
   clients: Client[];
   products: Product[];
   sales: Sale[];
   expenses: Expense[];
   orders: Order[];
   loading: boolean;
+  authLoading: boolean;
+  loginWithGoogle: () => Promise<void>;
+  logout: () => Promise<void>;
   refreshData: () => Promise<void>;
+  addUser: (user: Partial<User>) => Promise<void>;
+  updateUser: (id: string, user: Partial<User>) => Promise<void>;
   addProduct: (product: Partial<Product>) => Promise<void>;
+  updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
   addClient: (client: Partial<Client>) => Promise<void>;
+  updateClient: (id: string, client: Partial<Client>) => Promise<void>;
   addSale: (sale: Partial<Sale>) => Promise<void>;
+  updateSale: (id: string, sale: Partial<Sale>) => Promise<void>;
   addExpense: (expense: Partial<Expense>) => Promise<void>;
+  updateExpense: (id: string, expense: Partial<Expense>) => Promise<void>;
   addOrder: (order: Partial<Order>) => Promise<void>;
+  updateOrder: (id: string, order: Partial<Order>) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const res = await fetch('/api/auth/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: firebaseUser.email, name: firebaseUser.displayName })
+          });
+          
+          if (res.ok) {
+            const userData = await res.json();
+            setCurrentUser(userData);
+            fetchData();
+          } else {
+            const errorData = await res.json();
+            alert(errorData.error || 'Acceso denegado');
+            await signOut(auth);
+            setCurrentUser(null);
+          }
+        } catch (error) {
+          console.error('Error verifying user:', error);
+          await signOut(auth);
+          setCurrentUser(null);
+        }
+      } else {
+        setCurrentUser(null);
+      }
+      setAuthLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const loginWithGoogle = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error: any) {
+      console.error('Error logging in:', error);
+      alert(`Error al iniciar sesión: ${error.message}`);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await signOut(auth);
+      setCurrentUser(null);
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [clientsRes, productsRes, salesRes, expensesRes, ordersRes] = await Promise.all([
+      const [usersRes, clientsRes, productsRes, salesRes, expensesRes, ordersRes] = await Promise.all([
+        fetch('/api/users'),
         fetch('/api/clients'),
         fetch('/api/products'),
         fetch('/api/sales'),
@@ -111,6 +191,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         fetch('/api/orders')
       ]);
 
+      if (usersRes.ok) {
+        const data = await usersRes.json();
+        setUsers(data.map((d: any) => ({ ...d, id: d._id })));
+      }
       if (clientsRes.ok) {
         const data = await clientsRes.json();
         setClients(data.map((d: any) => ({ ...d, id: d._id })));
@@ -138,9 +222,47 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const addUser = async (user: Partial<User>) => {
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user)
+      });
+      if (res.ok) {
+        const newUser = await res.json();
+        setUsers(prev => [{ ...newUser, id: newUser._id }, ...prev]);
+        alert('Usuario guardado exitosamente');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al guardar el usuario: ${errorData.error || res.statusText}`);
+      }
+    } catch (error: any) {
+      console.error('Error adding user:', error);
+      alert(`Error de conexión: ${error.message}`);
+    }
+  };
+
+  const updateUser = async (id: string, user: Partial<User>) => {
+    try {
+      const res = await fetch(`/api/users/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user)
+      });
+      if (res.ok) {
+        const updatedUser = await res.json();
+        setUsers(prev => prev.map(u => u._id === id ? { ...updatedUser, id: updatedUser._id } : u));
+        alert('Usuario actualizado exitosamente');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al actualizar el usuario: ${errorData.error || res.statusText}`);
+      }
+    } catch (error: any) {
+      console.error('Error updating user:', error);
+      alert(`Error de conexión: ${error.message}`);
+    }
+  };
 
   const addProduct = async (product: Partial<Product>) => {
     try {
@@ -163,6 +285,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateProduct = async (id: string, product: Partial<Product>) => {
+    try {
+      const res = await fetch(`/api/products/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(product)
+      });
+      if (res.ok) {
+        const updatedProduct = await res.json();
+        setProducts(prev => prev.map(p => p._id === id ? { ...updatedProduct, id: updatedProduct._id } : p));
+        alert('Producto actualizado exitosamente');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al actualizar el producto: ${errorData.error || res.statusText}`);
+      }
+    } catch (error: any) {
+      console.error('Error updating product:', error);
+      alert(`Error de conexión: ${error.message}`);
+    }
+  };
+
   const addClient = async (client: Partial<Client>) => {
     try {
       const res = await fetch('/api/clients', {
@@ -180,6 +323,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error: any) {
       console.error('Error adding client:', error);
+      alert(`Error de conexión: ${error.message}`);
+    }
+  };
+
+  const updateClient = async (id: string, client: Partial<Client>) => {
+    try {
+      const res = await fetch(`/api/clients/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(client)
+      });
+      if (res.ok) {
+        const updatedClient = await res.json();
+        setClients(prev => prev.map(c => c._id === id ? { ...updatedClient, id: updatedClient._id } : c));
+        alert('Cliente actualizado exitosamente');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al actualizar el cliente: ${errorData.error || res.statusText}`);
+      }
+    } catch (error: any) {
+      console.error('Error updating client:', error);
       alert(`Error de conexión: ${error.message}`);
     }
   };
@@ -211,6 +375,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateSale = async (id: string, sale: Partial<Sale>) => {
+    try {
+      const res = await fetch(`/api/sales/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sale)
+      });
+      if (res.ok) {
+        const updatedSale = await res.json();
+        setSales(prev => prev.map(s => s._id === id ? { ...updatedSale, id: updatedSale._id } : s));
+        alert('Venta actualizada exitosamente');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al actualizar la venta: ${errorData.error || res.statusText}`);
+      }
+    } catch (error: any) {
+      console.error('Error updating sale:', error);
+      alert(`Error de conexión: ${error.message}`);
+    }
+  };
+
   const addExpense = async (expense: Partial<Expense>) => {
     try {
       const res = await fetch('/api/expenses', {
@@ -228,6 +413,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error: any) {
       console.error('Error adding expense:', error);
+      alert(`Error de conexión: ${error.message}`);
+    }
+  };
+
+  const updateExpense = async (id: string, expense: Partial<Expense>) => {
+    try {
+      const res = await fetch(`/api/expenses/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(expense)
+      });
+      if (res.ok) {
+        const updatedExpense = await res.json();
+        setExpenses(prev => prev.map(e => e._id === id ? { ...updatedExpense, id: updatedExpense._id } : e));
+        alert('Gasto actualizado exitosamente');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al actualizar el gasto: ${errorData.error || res.statusText}`);
+      }
+    } catch (error: any) {
+      console.error('Error updating expense:', error);
       alert(`Error de conexión: ${error.message}`);
     }
   };
@@ -253,11 +459,32 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateOrder = async (id: string, order: Partial<Order>) => {
+    try {
+      const res = await fetch(`/api/orders/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(order)
+      });
+      if (res.ok) {
+        const updatedOrder = await res.json();
+        setOrders(prev => prev.map(o => o._id === id ? { ...updatedOrder, id: updatedOrder._id } : o));
+        alert('Encargo actualizado exitosamente');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al actualizar el encargo: ${errorData.error || res.statusText}`);
+      }
+    } catch (error: any) {
+      console.error('Error updating order:', error);
+      alert(`Error de conexión: ${error.message}`);
+    }
+  };
+
   return (
     <AppContext.Provider value={{ 
-      clients, products, sales, expenses, orders, loading, 
-      refreshData: fetchData, addProduct, addClient, addSale,
-      addExpense, addOrder
+      currentUser, users, clients, products, sales, expenses, orders, loading, authLoading,
+      loginWithGoogle, logout, refreshData: fetchData, addUser, updateUser, addProduct, updateProduct, addClient, updateClient, addSale, updateSale,
+      addExpense, updateExpense, addOrder, updateOrder
     }}>
       {children}
     </AppContext.Provider>

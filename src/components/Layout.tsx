@@ -1,9 +1,11 @@
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, Users, ShoppingCart, Receipt, ClipboardList, Menu, Store } from 'lucide-react';
+import { LayoutDashboard, Package, Users, ShoppingCart, Receipt, ClipboardList, Menu, Store, ShieldAlert, LogOut } from 'lucide-react';
 import { useState } from 'react';
+import { useAppContext } from '../context/AppContext';
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { currentUser, logout } = useAppContext();
 
   const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -14,6 +16,10 @@ export default function Layout() {
     { to: '/expenses', icon: Receipt, label: 'Gastos' },
     { to: '/orders', icon: ClipboardList, label: 'Encargos' },
   ];
+
+  if (currentUser?.role === 'admin') {
+    navItems.push({ to: '/users', icon: ShieldAlert, label: 'Usuarios' });
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -27,13 +33,13 @@ export default function Layout() {
 
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
+        fixed inset-y-0 left-0 z-30 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 flex flex-col
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="flex items-center justify-center h-16 border-b border-gray-200 px-4">
+        <div className="flex items-center justify-center h-16 border-b border-gray-200 px-4 flex-shrink-0">
           <h1 className="text-lg font-bold text-indigo-600 text-center leading-tight">Pastoral de Pequeñas Comunidades NSS</h1>
         </div>
-        <nav className="p-4 space-y-1">
+        <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -52,6 +58,21 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
+        
+        <div className="p-4 border-t border-gray-200 flex-shrink-0">
+          <div className="mb-4 px-4">
+            <p className="text-sm font-medium text-gray-900 truncate">{currentUser?.name}</p>
+            <p className="text-xs text-gray-500 truncate">{currentUser?.email}</p>
+            <p className="text-xs text-indigo-600 font-semibold uppercase mt-1">{currentUser?.role}</p>
+          </div>
+          <button 
+            onClick={logout}
+            className="flex w-full items-center px-4 py-2 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+          >
+            <LogOut className="w-5 h-5 mr-3" />
+            Cerrar Sesión
+          </button>
+        </div>
       </aside>
 
       {/* Main content */}
