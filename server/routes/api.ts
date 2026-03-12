@@ -126,6 +126,7 @@ router.put('/settings', async (req, res) => {
     if (settings) {
       settings.companyName = req.body.companyName || settings.companyName;
       settings.logoUrl = req.body.logoUrl !== undefined ? req.body.logoUrl : settings.logoUrl;
+      settings.corporatePhone = req.body.corporatePhone !== undefined ? req.body.corporatePhone : settings.corporatePhone;
       await settings.save();
     } else {
       settings = await Settings.create(req.body);
