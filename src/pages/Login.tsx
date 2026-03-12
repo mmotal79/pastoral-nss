@@ -38,7 +38,8 @@ export default function Login() {
     // Create the message
     let message = `Hola, quisiera información sobre éste artículo: ${product.name}`;
     if (product.imageUrl) {
-      message += `\nImagen: ${product.imageUrl}`;
+      const imageUrl = `${window.location.origin}/api/products/${product._id || product.id}/image`;
+      message += `\nImagen: ${imageUrl}`;
     }
     
     // Encode the message for the URL

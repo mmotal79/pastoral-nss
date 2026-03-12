@@ -208,6 +208,37 @@ router.get('/products', async (req, res) => {
   }
 });
 
+router.get('/products/:id/image', async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product || !product.imageUrl) {
+      return res.status(404).send('Image not found');
+    }
+
+    // Check if it's a base64 image
+    const match = product.imageUrl.match(/^data:image\/([a-zA-Z+]+);base64,(.+)$/);
+    if (match) {
+      const contentType = `image/${match[1]}`;
+      const base64Data = match[2];
+      const buffer = Buffer.from(base64Data, 'base64');
+      
+      res.set('Content-Type', contentType);
+      res.set('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+      return res.send(buffer);
+    }
+
+    // If it's a regular URL, redirect to it
+    if (product.imageUrl.startsWith('http')) {
+      return res.redirect(product.imageUrl);
+    }
+
+    res.status(404).send('Invalid image format');
+  } catch (error: any) {
+    console.error('Error fetching product image:', error);
+    res.status(500).send('Error fetching image');
+  }
+});
+
 router.post('/products', async (req, res) => {
   try {
     const product = new Product(req.body);
