@@ -7,6 +7,7 @@ export default function Settings() {
   const { settings, updateSettings } = useAppContext();
   const [companyName, setCompanyName] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
+  const [corporatePhone, setCorporatePhone] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -14,6 +15,7 @@ export default function Settings() {
     if (settings) {
       setCompanyName(settings.companyName || '');
       setLogoUrl(settings.logoUrl || '');
+      setCorporatePhone(settings.corporatePhone || '');
     }
   }, [settings]);
 
@@ -35,7 +37,7 @@ export default function Settings() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateSettings({ companyName, logoUrl });
+    await updateSettings({ companyName, logoUrl, corporatePhone });
   };
 
   return (
@@ -56,6 +58,20 @@ export default function Settings() {
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
               placeholder="Ej. Pastoral de Pequeñas Comunidades"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Teléfono Corporativo (WhatsApp)</label>
+            <input
+              type="text"
+              value={corporatePhone}
+              onChange={(e) => setCorporatePhone(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
+              placeholder="Ej. +584141234567"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Este número se utilizará para que los clientes soliciten información desde el catálogo público. Incluye el código de país (ej. +58).
+            </p>
           </div>
 
           <div>

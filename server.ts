@@ -32,6 +32,14 @@ async function startServer() {
       await mongoose.connect(uri);
       dbConnected = true;
       console.log('✅ Conectado a MongoDB Atlas');
+      
+      // Intentar eliminar índice problemático si existe
+      try {
+        await mongoose.connection.collection('clients').dropIndex('documentId_1');
+        console.log('✅ Índice documentId_1 eliminado de la colección clients');
+      } catch (e) {
+        // Ignorar si el índice no existe
+      }
     } catch (err: any) {
       if (err.message && err.message.includes('bad auth')) {
         console.error('❌ Error de Autenticación en MongoDB: Usuario o contraseña incorrectos en MONGODB_URI.');

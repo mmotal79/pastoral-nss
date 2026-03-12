@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useAppContext, User } from '../context/AppContext';
-import { Plus, Edit, Trash2, Shield, User as UserIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, Shield, User as UserIcon, Mail } from 'lucide-react';
 
 export default function Users() {
-  const { users, addUser, updateUser, currentUser } = useAppContext();
+  const { users, addUser, updateUser, deleteUser, sendWelcomeEmail, currentUser } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({
@@ -23,6 +23,18 @@ export default function Users() {
     setIsModalOpen(false);
     setEditingUser(null);
     setFormData({ name: '', email: '', role: 'seller', isActive: true });
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('¿Estás seguro de que deseas eliminar este usuario?')) {
+      await deleteUser(id);
+    }
+  };
+
+  const handleSendEmail = async (id: string) => {
+    if (window.confirm('¿Deseas enviar el correo de bienvenida a este usuario?')) {
+      await sendWelcomeEmail(id);
+    }
   };
 
   const openEditModal = (user: User) => {
@@ -101,12 +113,33 @@ export default function Users() {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button 
-                    onClick={() => openEditModal(user)}
-                    className="text-indigo-600 hover:text-indigo-900"
-                  >
-                    <Edit className="w-5 h-5" />
-                  </button>
+                  <div className="flex justify-end space-x-2">
+                    <button 
+                      onClick={() => handleSendEmail(user._id!)}
+                      className="text-blue-600 hover:text-blue-900"
+                      title="Enviar Email de Bienvenida"
+                    >
+                      <Mail className="w-5 h-5" />
+                    </button>
+                    {user.role !== 'admin' && (
+                      <>
+                        <button 
+                          onClick={() => openEditModal(user)}
+                          className="text-indigo-600 hover:text-indigo-900"
+                          title="Editar Usuario"
+                        >
+                          <Edit className="w-5 h-5" />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(user._id!)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Eliminar Usuario"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -142,11 +175,6 @@ export default function Users() {
                   disabled={!!editingUser}
                 />
                 <p className="mt-1 text-xs text-gray-500">El usuario iniciará sesión con esta cuenta de Google.</p>
-                {!editingUser && (
-                  <p className="mt-1 text-xs text-indigo-600 font-medium">
-                    Se enviará un correo electrónico automático de invitación a esta dirección.
-                  </p>
-                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Rol</label>

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { LogIn, Image as ImageIcon, ShoppingBag } from 'lucide-react';
+import { LogIn, Image as ImageIcon, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
@@ -23,7 +23,30 @@ export default function Login() {
   }
 
   const companyName = settings?.companyName || 'Pastoral de Pequeñas Comunidades';
+  const corporatePhone = settings?.corporatePhone || '';
   const availableProducts = products.filter(p => p.stock > 0);
+
+  const handleWhatsAppInquiry = (product: any) => {
+    if (!corporatePhone) {
+      alert('El número de teléfono corporativo no está configurado. Por favor, contacte al administrador.');
+      return;
+    }
+    
+    // Clean the phone number (remove spaces, dashes, etc.)
+    const cleanPhone = corporatePhone.replace(/\D/g, '');
+    
+    // Create the message
+    let message = `Hola, quisiera información sobre éste artículo: ${product.name}`;
+    if (product.imageUrl) {
+      message += `\nImagen: ${product.imageUrl}`;
+    }
+    
+    // Encode the message for the URL
+    const encodedMessage = encodeURIComponent(message);
+    
+    // Open WhatsApp
+    window.open(`https://wa.me/${cleanPhone}?text=${encodedMessage}`, '_blank');
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -92,11 +115,12 @@ export default function Login() {
                 <div className="flex items-center justify-between">
                   <span className="text-xl font-bold text-indigo-600">${product.priceUSD?.toFixed(2) || '0.00'}</span>
                   <button 
-                    onClick={loginWithGoogle}
-                    className="flex items-center justify-center p-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
-                    title="Inicia sesión para comprar"
+                    onClick={() => handleWhatsAppInquiry(product)}
+                    className="flex items-center justify-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                    title="Solicitar información por WhatsApp"
                   >
-                    <ShoppingBag className="w-4 h-4" />
+                    <MessageCircle className="w-4 h-4 mr-2" />
+                    Solicitar Info
                   </button>
                 </div>
               </div>

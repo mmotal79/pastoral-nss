@@ -88,6 +88,7 @@ export interface Order {
 export interface Settings {
   companyName: string;
   logoUrl: string;
+  corporatePhone?: string;
 }
 
 interface AppContextType {
@@ -107,6 +108,8 @@ interface AppContextType {
   updateSettings: (settings: Partial<Settings>) => Promise<void>;
   addUser: (user: Partial<User>) => Promise<void>;
   updateUser: (id: string, user: Partial<User>) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
+  sendWelcomeEmail: (id: string) => Promise<void>;
   addProduct: (product: Partial<Product>) => Promise<void>;
   updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
   addClient: (client: Partial<Client>) => Promise<void>;
@@ -277,15 +280,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (res.ok) {
         const newUser = await res.json();
         setUsers(prev => [{ ...newUser, id: newUser._id }, ...prev]);
-        
-        let message = 'Usuario guardado exitosamente.';
-        if (newUser.emailStatus?.sent) {
-          message += '\nSe ha enviado un correo electrónico automático informando al usuario sobre su acceso.';
-        } else if (newUser.emailStatus?.simulated) {
-          message += '\n(Simulación) El correo se habría enviado, pero faltan las credenciales EMAIL_USER y EMAIL_PASS en el entorno.';
-        }
-        
-        alert(message);
+        alert('Usuario guardado exitosamente.');
       } else {
         const errorData = await res.json().catch(() => ({}));
         alert(`Error al guardar el usuario: ${errorData.error || res.statusText}`);
@@ -313,6 +308,46 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error: any) {
       console.error('Error updating user:', error);
+      alert(`Error de conexión: ${error.message}`);
+    }
+  };
+
+  const deleteUser = async (id: string) => {
+    try {
+      const res = await fetch(`/api/users/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setUsers(prev => prev.filter(u => u._id !== id));
+        alert('Usuario eliminado exitosamente');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al eliminar el usuario: ${errorData.error || res.statusText}`);
+      }
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      alert(`Error de conexión: ${error.message}`);
+    }
+  };
+
+  const sendWelcomeEmail = async (id: string) => {
+    try {
+      const res = await fetch(`/api/users/${id}/send-welcome`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        let message = 'Correo enviado exitosamente.';
+        if (data.emailStatus?.simulated) {
+          message += '\n(Simulación) El correo se habría enviado, pero faltan las credenciales EMAIL_USER y EMAIL_PASS en el entorno.';
+        }
+        alert(message);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al enviar el correo: ${errorData.error || res.statusText}`);
+      }
+    } catch (error: any) {
+      console.error('Error sending welcome email:', error);
       alert(`Error de conexión: ${error.message}`);
     }
   };
@@ -536,7 +571,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   return (
     <AppContext.Provider value={{ 
       currentUser, users, clients, products, sales, expenses, orders, settings, loading, authLoading,
-      loginWithGoogle, logout, refreshData: fetchData, updateSettings, addUser, updateUser, addProduct, updateProduct, addClient, updateClient, addSale, updateSale,
+      loginWithGoogle, logout, refreshData: fetchData, updateSettings, addUser, updateUser, deleteUser, sendWelcomeEmail, addProduct, updateProduct, addClient, updateClient, addSale, updateSale,
       addExpense, updateExpense, addOrder, updateOrder
     }}>
       {children}

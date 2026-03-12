@@ -13,21 +13,12 @@ const router = Router();
 
 // Configure Nodemailer transporter
 const transporter = nodemailer.createTransport({
-  host: '74.125.124.108', // IP directa de smtp.gmail.com para evitar líos de red
-  port: 465,
-  secure: true,
+  service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
-  tls: {
-    // Esto evita que falle por el cambio de nombre del host
-    rejectUnauthorized: false
+    user: process.env.EMAIL_USER || 'tu_correo@gmail.com',
+    pass: process.env.EMAIL_PASS || 'tu_contraseña_de_aplicacion'
   }
-} as any);
+});
 
 // Helper function to send invitation email
 const sendInvitationEmail = async (email: string, name: string, role: string) => {
@@ -161,13 +152,7 @@ router.post('/users', async (req, res) => {
     const user = new User(req.body);
     await user.save();
     
-    // Send invitation email
-    const emailStatus = await sendInvitationEmail(user.email, user.name, user.role);
-    
-    res.status(201).json({
-      ...user.toObject(),
-      emailStatus
-    });
+    res.status(201).json(user);
   } catch (error: any) {
     console.error('Error creating user:', error);
     res.status(400).json({ error: error.message || 'Error creating user' });
@@ -191,6 +176,21 @@ router.delete('/users/:id', async (req, res) => {
   } catch (error: any) {
     console.error('Error deleting user:', error);
     res.status(400).json({ error: error.message || 'Error deleting user' });
+  }
+});
+
+router.post('/users/:id/send-welcome', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+    
+    const emailStatus = await sendInvitationEmail(user.email, user.name, user.role);
+    res.json({ success: true, emailStatus });
+  } catch (error: any) {
+    console.error('Error sending welcome email:', error);
+    res.status(500).json({ error: error.message || 'Error sending welcome email' });
   }
 });
 
