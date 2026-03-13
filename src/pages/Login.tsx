@@ -26,7 +26,7 @@ export default function Login() {
   const corporatePhone = settings?.corporatePhone || '';
   const availableProducts = products.filter(p => p.stock > 0);
 
-  const handleWhatsAppInquiry = (product: any) => {
+  const handleWhatsAppInquiry = async (product: any) => {
     if (!corporatePhone) {
       alert('El número de teléfono corporativo no está configurado. Por favor, contacte al administrador.');
       return;
@@ -37,9 +37,28 @@ export default function Login() {
     
     // Create the message
     let message = `Hola, quisiera información sobre éste artículo: ${product.name}`;
+    
     if (product.imageUrl) {
-      const imageUrl = `${window.location.origin}/api/products/${product._id || product.id}/image`;
-      message += `\nImagen: ${imageUrl}`;
+      const longImageUrl = `${window.location.origin}/api/products/${product._id || product.id}/image.jpg`;
+      
+      try {
+        // Try to shorten the URL
+        const response = await fetch('/api/utils/shorten', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ longUrl: longImageUrl })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          message += `\nImagen: ${data.link}`;
+        } else {
+          message += `\nImagen: ${longImageUrl}`;
+        }
+      } catch (error) {
+        console.error('Error shortening URL:', error);
+        message += `\nImagen: ${longImageUrl}`;
+      }
     }
     
     // Encode the message for the URL

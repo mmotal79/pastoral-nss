@@ -209,6 +209,14 @@ router.get('/products', async (req, res) => {
 });
 
 router.get('/products/:id/image', async (req, res) => {
+  return serveProductImage(req, res);
+});
+
+router.get('/products/:id/image.jpg', async (req, res) => {
+  return serveProductImage(req, res);
+});
+
+async function serveProductImage(req: any, res: any) {
   try {
     const product = await Product.findById(req.params.id);
     if (!product || !product.imageUrl) {
@@ -237,7 +245,7 @@ router.get('/products/:id/image', async (req, res) => {
     console.error('Error fetching product image:', error);
     res.status(500).send('Error fetching image');
   }
-});
+}
 
 router.post('/products', async (req, res) => {
   try {
@@ -411,6 +419,40 @@ router.put('/expenses/:id', async (req, res) => {
   } catch (error: any) {
     console.error('Error updating expense:', error);
     res.status(400).json({ error: error.message || 'Error updating expense' });
+  }
+});
+
+router.post('/utils/shorten', async (req, res) => {
+  try {
+    const { longUrl } = req.body;
+    if (!longUrl) return res.status(400).json({ error: 'longUrl is required' });
+
+    const bitlyToken = process.env.BITLY_TOKEN;
+    if (!bitlyToken) {
+      console.warn('BITLY_TOKEN not configured, returning original URL');
+      return res.json({ link: longUrl });
+    }
+
+    const response = await fetch('https://api-ssl.bitly.com/v4/shorten', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${bitlyToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ long_url: longUrl })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Bitly error:', errorData);
+      return res.json({ link: longUrl }); // Fallback to long URL
+    }
+
+    const data = await response.json();
+    res.json({ link: data.link });
+  } catch (error: any) {
+    console.error('Error shortening URL:', error);
+    res.status(500).json({ error: error.message || 'Error shortening URL' });
   }
 });
 
