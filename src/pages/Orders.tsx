@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 
 export default function Orders() {
   const { orders, clients, products, addOrder, updateOrder, addSale } = useAppContext();
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [formData, setFormData] = useState({
