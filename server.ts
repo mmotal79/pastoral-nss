@@ -5,7 +5,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import apiRoutes from './server/routes/api';
+import apiRoutes from './server/routes/api.ts';
 
 dotenv.config();
 
@@ -63,17 +63,8 @@ async function startServer() {
     res.json({ status: 'ok', dbConnected, message: 'API de Pastoral de Pequeñas Comunidades funcionando' });
   });
 
-  app.get('/api/test', (req, res) => res.json({ test: 'ok' }));
-
   // Importar y usar las rutas
-  console.log('Registering API routes...');
-  const routes = (apiRoutes as any).default || apiRoutes;
-  if (!routes) {
-    console.error('❌ apiRoutes is undefined! Check your imports.');
-  } else {
-    console.log('✅ apiRoutes loaded successfully');
-  }
-  app.use('/api', routes);
+  app.use('/api', apiRoutes);
 
   // ==========================================
   // CONFIGURACIÓN DE VITE (Frontend)

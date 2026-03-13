@@ -51,13 +51,13 @@ export default function Login() {
         
         if (response.ok) {
           const data = await response.json();
-          message += ` y el bitly de la imagen: ${data.link}`;
+          message += ` y el bitly de la imagen ${data.link}`;
         } else {
-          message += ` y el enlace de la imagen: ${longImageUrl}`;
+          message += ` y el enlace de la imagen ${longImageUrl}`;
         }
       } catch (error) {
         console.error('Error shortening URL:', error);
-        message += ` y el enlace de la imagen: ${longImageUrl}`;
+        message += ` y el enlace de la imagen ${longImageUrl}`;
       }
     }
     

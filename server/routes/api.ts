@@ -1,13 +1,13 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import nodemailer from 'nodemailer';
-import { Product } from '../models/Product';
-import { Client } from '../models/Client';
-import { Sale } from '../models/Sale';
-import { Order } from '../models/Order';
-import { Expense } from '../models/Expense';
-import { User } from '../models/User';
-import { Settings } from '../models/Settings';
+import { Product } from '../models/Product.ts';
+import { Client } from '../models/Client.ts';
+import { Sale } from '../models/Sale.ts';
+import { Order } from '../models/Order.ts';
+import { Expense } from '../models/Expense.ts';
+import { User } from '../models/User.ts';
+import { Settings } from '../models/Settings.ts';
 
 const router = express.Router();
 
@@ -450,23 +450,7 @@ router.post('/utils/shorten', async (req, res) => {
       return res.json({ link: longUrl });
     }
 
-    // Use global fetch if available, otherwise try to import node-fetch
-    let fetchFn: any = globalThis.fetch;
-    if (!fetchFn) {
-      try {
-        const nodeFetch = await import('node-fetch');
-        fetchFn = nodeFetch.default;
-      } catch (e) {
-        console.error('node-fetch not found and global fetch is missing');
-      }
-    }
-
-    if (!fetchFn) {
-      console.warn('fetch is not defined in this environment, returning original URL');
-      return res.json({ link: longUrl });
-    }
-
-    const response = await fetchFn('https://api-ssl.bitly.com/v4/shorten', {
+    const response = await fetch('https://api-ssl.bitly.com/v4/shorten', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${bitlyToken}`,
@@ -478,7 +462,7 @@ router.post('/utils/shorten', async (req, res) => {
     if (!response.ok) {
       const errorData = await response.json();
       console.error('Bitly error:', errorData);
-      return res.json({ link: longUrl }); // Fallback to long URL
+      return res.json({ link: longUrl });
     }
 
     const data = await response.json();
