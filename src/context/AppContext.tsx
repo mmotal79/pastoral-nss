@@ -80,7 +80,7 @@ export interface Order {
   _id?: string;
   id?: string;
   clientId: string | Client;
-  itemDescription: string;
+  items: { productId: string; quantity: number; priceUSD: number; name: string }[];
   color: string;
   design: string;
   materials: string;
