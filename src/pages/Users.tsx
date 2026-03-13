@@ -10,7 +10,10 @@ export default function Users() {
     name: '',
     email: '',
     role: 'seller',
-    isActive: true
+    isActive: true,
+    commissionPercentage: 0,
+    periodicSalary: 0,
+    salaryFrequency: 'mensual'
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,7 +25,7 @@ export default function Users() {
     }
     setIsModalOpen(false);
     setEditingUser(null);
-    setFormData({ name: '', email: '', role: 'seller', isActive: true });
+    setFormData({ name: '', email: '', role: 'seller', isActive: true, commissionPercentage: 0, periodicSalary: 0, salaryFrequency: 'mensual' });
   };
 
   const handleDelete = async (id: string) => {
@@ -43,7 +46,10 @@ export default function Users() {
       name: user.name,
       email: user.email,
       role: user.role,
-      isActive: user.isActive
+      isActive: user.isActive,
+      commissionPercentage: user.commissionPercentage || 0,
+      periodicSalary: user.periodicSalary || 0,
+      salaryFrequency: user.salaryFrequency || 'mensual'
     });
     setIsModalOpen(true);
   };
@@ -199,6 +205,41 @@ export default function Users() {
                 <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">
                   Usuario Activo (Permitir acceso)
                 </label>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">% Comisión</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  value={formData.commissionPercentage}
+                  onChange={(e) => setFormData({ ...formData, commissionPercentage: Number(e.target.value) })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Salario Periódico (USD)</label>
+                <input
+                  type="number"
+                  min="0"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  value={formData.periodicSalary}
+                  onChange={(e) => setFormData({ ...formData, periodicSalary: Number(e.target.value) })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Frecuencia de Salario</label>
+                <select
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  value={formData.salaryFrequency}
+                  onChange={(e) => setFormData({ ...formData, salaryFrequency: e.target.value as any })}
+                >
+                  <option value="diario">Diario</option>
+                  <option value="semanal">Semanal</option>
+                  <option value="quincenal">Quincenal</option>
+                  <option value="mensual">Mensual</option>
+                  <option value="anual">Anual</option>
+                </select>
               </div>
               <div className="flex justify-end space-x-3 mt-6">
                 <button

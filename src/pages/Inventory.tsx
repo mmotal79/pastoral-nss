@@ -5,7 +5,7 @@ import Modal from '../components/Modal';
 import { compressImage } from '../utils/imageUtils';
 
 export default function Inventory() {
-  const { products, addProduct, updateProduct, settings } = useAppContext();
+  const { products, addProduct, updateProduct, settings, isSeller } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);

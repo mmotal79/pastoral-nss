@@ -10,6 +10,9 @@ export interface User {
   email: string;
   role: 'admin' | 'seller' | 'manager';
   isActive: boolean;
+  commissionPercentage?: number;
+  periodicSalary?: number;
+  salaryFrequency?: 'diario' | 'semanal' | 'quincenal' | 'mensual' | 'anual';
 }
 
 export interface Client {
@@ -57,7 +60,8 @@ export interface Sale {
   items: { productId: string; quantity: number; priceUSD: number; name: string }[];
   totalUSD: number;
   date: string;
-  status: 'paid' | 'pending';
+  status: 'paid' | 'pending' | 'partial';
+  sellerId?: string;
   payments: Payment[];
 }
 
