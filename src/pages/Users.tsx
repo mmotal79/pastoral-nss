@@ -54,7 +54,7 @@ export default function Users() {
     setIsModalOpen(true);
   };
 
-  if (currentUser?.role !== 'admin') {
+  if (currentUser?.role !== 'admin' && currentUser?._id !== editingUser?._id) {
     return <div className="p-8 text-center text-red-600">Acceso denegado. Solo administradores.</div>;
   }
 
@@ -62,17 +62,19 @@ export default function Users() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Usuarios del Sistema</h1>
-        <button 
-          onClick={() => {
-            setEditingUser(null);
-            setFormData({ name: '', email: '', role: 'seller', isActive: true });
-            setIsModalOpen(true);
-          }}
-          className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Nuevo Usuario
-        </button>
+        {currentUser?.role === 'admin' && (
+          <button 
+            onClick={() => {
+              setEditingUser(null);
+              setFormData({ name: '', email: '', role: 'seller', isActive: true, commissionPercentage: 0, periodicSalary: 0, salaryFrequency: 'mensual' });
+              setIsModalOpen(true);
+            }}
+            className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Nuevo Usuario
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-x-auto">
@@ -127,23 +129,21 @@ export default function Users() {
                     >
                       <Mail className="w-5 h-5" />
                     </button>
+                    <button 
+                      onClick={() => openEditModal(user)}
+                      className="text-indigo-600 hover:text-indigo-900"
+                      title="Editar Usuario"
+                    >
+                      <Edit className="w-5 h-5" />
+                    </button>
                     {user.role !== 'admin' && (
-                      <>
-                        <button 
-                          onClick={() => openEditModal(user)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                          title="Editar Usuario"
-                        >
-                          <Edit className="w-5 h-5" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(user._id!)}
-                          className="text-red-600 hover:text-red-900"
-                          title="Eliminar Usuario"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </>
+                      <button 
+                        onClick={() => handleDelete(user._id!)}
+                        className="text-red-600 hover:text-red-900"
+                        title="Eliminar Usuario"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
                     )}
                   </div>
                 </td>

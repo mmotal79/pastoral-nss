@@ -20,8 +20,15 @@ export default function Orders() {
     status: 'pending' as 'pending' | 'in_progress' | 'completed' | 'transferred_to_sale'
   });
 
+  const [clientSearch, setClientSearch] = useState('');
+  const filteredClients = clients.filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase()));
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.clientId) {
+      alert('Por favor, seleccione un cliente');
+      return;
+    }
     const orderData = {
       clientId: formData.clientId,
       itemDescription: formData.itemDescription,
@@ -47,6 +54,7 @@ export default function Orders() {
       orderDate: format(new Date(), 'yyyy-MM-dd'), deliveryDate: format(new Date(), 'yyyy-MM-dd'),
       estimatedCostUSD: '', status: 'pending'
     });
+    setClientSearch('');
   };
 
   const openEditModal = (order: Order) => {
@@ -131,9 +139,16 @@ export default function Orders() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">Cliente</label>
+            <input 
+              type="text" 
+              placeholder="Buscar cliente..." 
+              value={clientSearch} 
+              onChange={e => setClientSearch(e.target.value)} 
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
+            />
             <select required value={formData.clientId} onChange={e => setFormData({...formData, clientId: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border">
               <option value="">Seleccione un cliente</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {filteredClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div>

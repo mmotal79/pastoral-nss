@@ -9,7 +9,7 @@ const SalesCommissions = () => {
     if (sales.length > 0 && users.length > 0) {
       // Logic to calculate commissions
       const calculatedCommissions = sales.map(sale => {
-        const seller = users.find(u => u._id === sale.sellerId);
+        const seller = users.find(u => u._id === (sale.sellerId as any));
         const commissionPercentage = seller?.commissionPercentage || 0;
         const commission = (sale.totalUSD * commissionPercentage) / 100;
         return {
