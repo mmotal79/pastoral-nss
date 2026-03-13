@@ -1,15 +1,15 @@
-import { Router } from 'express';
+import express from 'express';
 import mongoose from 'mongoose';
 import nodemailer from 'nodemailer';
-import { Product } from '../models/Product.ts';
-import { Client } from '../models/Client.ts';
-import { Sale } from '../models/Sale.ts';
-import { Order } from '../models/Order.ts';
-import { Expense } from '../models/Expense.ts';
-import { User } from '../models/User.ts';
-import { Settings } from '../models/Settings.ts';
+import { Product } from '../models/Product';
+import { Client } from '../models/Client';
+import { Sale } from '../models/Sale';
+import { Order } from '../models/Order';
+import { Expense } from '../models/Expense';
+import { User } from '../models/User';
+import { Settings } from '../models/Settings';
 
-const router = Router();
+const router = express.Router();
 
 // Configure Nodemailer transporter
 const transporter = nodemailer.createTransport({
@@ -209,33 +209,22 @@ router.get('/products', async (req, res) => {
 });
 
 router.get('/products/:id/image', async (req, res) => {
-  return serveProductImage(req, res);
-});
-
-router.get('/products/:id/image.jpg', async (req, res) => {
-  return serveProductImage(req, res);
-});
-
-async function serveProductImage(req: any, res: any) {
   try {
     const product = await Product.findById(req.params.id);
     if (!product || !product.imageUrl) {
       return res.status(404).send('Image not found');
     }
 
-    // Check if it's a base64 image
     const match = product.imageUrl.match(/^data:image\/([a-zA-Z+]+);base64,(.+)$/);
     if (match) {
       const contentType = `image/${match[1]}`;
       const base64Data = match[2];
       const buffer = Buffer.from(base64Data, 'base64');
-      
       res.set('Content-Type', contentType);
-      res.set('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+      res.set('Cache-Control', 'public, max-age=31536000');
       return res.send(buffer);
     }
 
-    // If it's a regular URL, redirect to it
     if (product.imageUrl.startsWith('http')) {
       return res.redirect(product.imageUrl);
     }
@@ -245,7 +234,35 @@ async function serveProductImage(req: any, res: any) {
     console.error('Error fetching product image:', error);
     res.status(500).send('Error fetching image');
   }
-}
+});
+
+router.get('/products/:id/image.jpg', async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product || !product.imageUrl) {
+      return res.status(404).send('Image not found');
+    }
+
+    const match = product.imageUrl.match(/^data:image\/([a-zA-Z+]+);base64,(.+)$/);
+    if (match) {
+      const contentType = `image/${match[1]}`;
+      const base64Data = match[2];
+      const buffer = Buffer.from(base64Data, 'base64');
+      res.set('Content-Type', contentType);
+      res.set('Cache-Control', 'public, max-age=31536000');
+      return res.send(buffer);
+    }
+
+    if (product.imageUrl.startsWith('http')) {
+      return res.redirect(product.imageUrl);
+    }
+
+    res.status(404).send('Invalid image format');
+  } catch (error: any) {
+    console.error('Error fetching product image:', error);
+    res.status(500).send('Error fetching image');
+  }
+});
 
 router.post('/products', async (req, res) => {
   try {
@@ -430,6 +447,11 @@ router.post('/utils/shorten', async (req, res) => {
     const bitlyToken = process.env.BITLY_TOKEN;
     if (!bitlyToken) {
       console.warn('BITLY_TOKEN not configured, returning original URL');
+      return res.json({ link: longUrl });
+    }
+
+    if (typeof fetch === 'undefined') {
+      console.warn('fetch is not defined in this environment, returning original URL');
       return res.json({ link: longUrl });
     }
 
