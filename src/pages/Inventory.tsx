@@ -16,19 +16,42 @@ export default function Inventory() {
     const socialText = product.socialDescription || product.description || `¡Mira nuestro nuevo producto: ${product.name}!`;
     
     // Create the WhatsApp link
-    let waMessage = `Hola, quisiera información sobre ${product.name}`;
+    const waMessage = `Hola, quisiera información sobre ${product.name}`;
     const waLink = `https://wa.me/${corporatePhone}?text=${encodeURIComponent(waMessage)}`;
     
-    const fullText = `${socialText}\n\n🛒 Cómpralo aquí: ${waLink}`;
-    
     try {
+      // 1. Shorten the URL using Bitly via our backend
+      let finalLink = waLink;
+      try {
+        const shortenRes = await fetch('/api/utils/shorten', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ longUrl: waLink })
+        });
+        if (shortenRes.ok) {
+          const data = await shortenRes.json();
+          finalLink = data.link;
+        }
+      } catch (err) {
+        console.error('Error shortening URL:', err);
+      }
+
+      const fullText = `${socialText}\n\n🛒 Cómpralo aquí: ${finalLink}`;
+      
+      // 2. Copy to clipboard automatically (helps with Instagram which often ignores text)
+      try {
+        await navigator.clipboard.writeText(fullText);
+      } catch (err) {
+        console.error('Clipboard error:', err);
+      }
+
       const shareData: any = {
         title: product.name,
-        text: fullText,
-        url: waLink
+        text: socialText, // Use only socialText here to avoid duplication if url is also provided
+        url: finalLink // This triggers the "Action Button" / Preview Card on Facebook
       };
 
-      // Try to include image if it's a base64 string
+      // 3. Try to include image if it's a base64 string
       if (product.imageUrl && product.imageUrl.startsWith('data:image')) {
         try {
           const response = await fetch(product.imageUrl);
@@ -37,8 +60,9 @@ export default function Inventory() {
           
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
             shareData.files = [file];
-            // When sharing files, some platforms ignore the 'url' field or 'text' field.
-            // We keep them just in case.
+            // When sharing files, some platforms ignore 'text' or 'url'.
+            // We include the link in the text as well for these cases.
+            shareData.text = fullText;
           }
         } catch (err) {
           console.error('Error preparing image for share:', err);
@@ -47,16 +71,18 @@ export default function Inventory() {
 
       if (navigator.share) {
         await navigator.share(shareData);
+        // Inform user about clipboard for Instagram
+        if (socialText) {
+          setTimeout(() => {
+            alert('¡Contenido compartido! Si en Instagram no aparece el texto, recuerda que ya fue copiado a tu portapapeles y puedes pegarlo directamente.');
+          }, 1000);
+        }
       } else {
-        // Fallback: Copy to clipboard
-        await navigator.clipboard.writeText(fullText);
-        alert('¡Texto copiado al portapapeles! Ahora puedes pegarlo en Instagram o Facebook.');
+        alert('¡Texto y enlace copiados al portapapeles! Ahora puedes pegarlos en Instagram o Facebook.');
       }
     } catch (error) {
       console.error('Error sharing:', error);
-      // Fallback: Copy to clipboard
-      await navigator.clipboard.writeText(fullText);
-      alert('¡Texto copiado al portapapeles!');
+      alert('Hubo un problema al compartir. El texto ha sido copiado al portapapeles como respaldo.');
     }
   };
 
