@@ -15,12 +15,12 @@ export default function Inventory() {
     const corporatePhone = settings?.corporatePhone?.replace(/\D/g, '') || '';
     const socialText = product.socialDescription || product.description || `¡Mira nuestro nuevo producto: ${product.name}!`;
     
-    // Create the WhatsApp link
+    // 1. Prepare the base WhatsApp link
     const waMessage = `Hola, quisiera información sobre ${product.name}`;
     const waLink = `https://wa.me/${corporatePhone}?text=${encodeURIComponent(waMessage)}`;
     
     try {
-      // 1. Shorten the URL using Bitly via our backend
+      // 2. Shorten the URL using Bitly (Mandatory check)
       let finalLink = waLink;
       try {
         const shortenRes = await fetch('/api/utils/shorten', {
@@ -30,28 +30,31 @@ export default function Inventory() {
         });
         if (shortenRes.ok) {
           const data = await shortenRes.json();
-          finalLink = data.link;
+          if (data.link && data.link.includes('bit.ly')) {
+            finalLink = data.link;
+          }
         }
       } catch (err) {
-        console.error('Error shortening URL:', err);
+        console.error('Bitly service error:', err);
       }
 
-      const fullText = `${socialText}\n\n🛒 Cómpralo aquí: ${finalLink}`;
+      const fullTextWithLink = `${socialText}\n\n🛒 Cómpralo aquí: ${finalLink}`;
       
-      // 2. Copy to clipboard automatically (helps with Instagram which often ignores text)
+      // 3. Always copy to clipboard as a reliable fallback (Essential for Instagram)
       try {
-        await navigator.clipboard.writeText(fullText);
+        await navigator.clipboard.writeText(fullTextWithLink);
       } catch (err) {
         console.error('Clipboard error:', err);
       }
 
+      // 4. Prepare Share Data Structure
       const shareData: any = {
         title: product.name,
-        text: socialText, // Use only socialText here to avoid duplication if url is also provided
-        url: finalLink // This triggers the "Action Button" / Preview Card on Facebook
+        text: socialText, // We send only text here to avoid duplication if URL is also sent
       };
 
-      // 3. Try to include image if it's a base64 string
+      // 5. Handle Image/File sharing
+      let isFileShared = false;
       if (product.imageUrl && product.imageUrl.startsWith('data:image')) {
         try {
           const response = await fetch(product.imageUrl);
@@ -60,29 +63,38 @@ export default function Inventory() {
           
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
             shareData.files = [file];
-            // When sharing files, some platforms ignore 'text' or 'url'.
-            // We include the link in the text as well for these cases.
-            shareData.text = fullText;
+            // When sharing files, many apps ignore the 'url' field, 
+            // so we must include the link in the 'text' field for these cases.
+            shareData.text = fullTextWithLink;
+            isFileShared = true;
           }
         } catch (err) {
-          console.error('Error preparing image for share:', err);
+          console.error('Image preparation failed:', err);
         }
       }
 
-      if (navigator.share) {
+      // 6. If no file is shared, use URL field for "Action Button" support (Facebook/Twitter)
+      if (!isFileShared) {
+        shareData.url = finalLink;
+      }
+
+      // 7. Execute Share or Fallback
+      if (navigator.share && navigator.canShare(shareData)) {
         await navigator.share(shareData);
-        // Inform user about clipboard for Instagram
-        if (socialText) {
+        if (isFileShared) {
+          // Special guidance for Instagram/Apps that might not take the text
           setTimeout(() => {
-            alert('¡Contenido compartido! Si en Instagram no aparece el texto, recuerda que ya fue copiado a tu portapapeles y puedes pegarlo directamente.');
-          }, 1000);
+            alert('¡Contenido enviado! Si la aplicación no cargó el texto automáticamente, ya lo tienes copiado en tu portapapeles. Solo dale a "Pegar".');
+          }, 800);
         }
       } else {
-        alert('¡Texto y enlace copiados al portapapeles! Ahora puedes pegarlos en Instagram o Facebook.');
+        // Professional fallback for Desktop
+        alert('¡Excelente! El texto publicitario y tu enlace de Bitly han sido copiados al portapapeles.\n\nYa puedes pegarlos directamente en tu publicación de Facebook o Instagram.');
       }
-    } catch (error) {
-      console.error('Error sharing:', error);
-      alert('Hubo un problema al compartir. El texto ha sido copiado al portapapeles como respaldo.');
+    } catch (error: any) {
+      if (error.name === 'AbortError') return; // User cancelled, no error needed
+      console.error('Share failed:', error);
+      alert('El contenido se copió al portapapeles. Puedes pegarlo manualmente en tus redes sociales.');
     }
   };
 
