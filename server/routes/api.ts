@@ -8,6 +8,7 @@ import { Order } from '../models/Order.js';
 import { Expense } from '../models/Expense.js';
 import { User } from '../models/User.js';
 import { Settings } from '../models/Settings.js';
+import { Commission } from '../models/Commission.js';
 
 const router = express.Router();
 
@@ -402,6 +403,16 @@ router.put('/orders/:id', async (req, res) => {
   } catch (error: any) {
     console.error('Error updating order:', error);
     res.status(400).json({ error: error.message || 'Error updating order' });
+  }
+});
+
+router.delete('/orders/:id', async (req, res) => {
+  try {
+    await Order.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Error deleting order:', error);
+    res.status(400).json({ error: error.message || 'Error deleting order' });
   }
 });
 

@@ -179,17 +179,19 @@ export default function Inventory() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Inventario</h1>
-        <button 
-          onClick={() => {
-            setEditingProduct(null);
-            setFormData({ name: '', description: '', costUSD: '', priceUSD: '', stock: '', imageUrl: '' });
-            setIsModalOpen(true);
-          }}
-          className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Nuevo Artículo
-        </button>
+        {!isSeller && (
+          <button 
+            onClick={() => {
+              setEditingProduct(null);
+              setFormData({ name: '', description: '', costUSD: '', priceUSD: '', stock: '', imageUrl: '' });
+              setIsModalOpen(true);
+            }}
+            className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Nuevo Artículo
+          </button>
+        )}
       </div>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingProduct ? "Editar Artículo" : "Nuevo Artículo"}>
@@ -282,7 +284,7 @@ export default function Inventory() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción RRSS</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Costo (USD)</th>
+              {!isSeller && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Costo (USD)</th>}
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio (USD)</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
@@ -312,19 +314,23 @@ export default function Inventory() {
                     <span className="text-red-400 italic">❌ Sin descripción</span>
                   )}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.costUSD?.toFixed(2) || '0.00'}</td>
+                {!isSeller && <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.costUSD?.toFixed(2) || '0.00'}</td>}
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.priceUSD?.toFixed(2) || '0.00'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-bold">{product.stock}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex items-center space-x-2">
-                  <button onClick={() => openEditModal(product)} className="text-blue-600 hover:text-blue-900" title="Editar Artículo">
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => handleStockChange(product, 1)} className="text-green-600 hover:text-green-900" title="Aumentar Stock">
-                    <PlusCircle className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => handleStockChange(product, -1)} className="text-red-600 hover:text-red-900" title="Disminuir Stock">
-                    <MinusCircle className="w-4 h-4" />
-                  </button>
+                  {!isSeller && (
+                    <>
+                      <button onClick={() => openEditModal(product)} className="text-blue-600 hover:text-blue-900" title="Editar Artículo">
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleStockChange(product, 1)} className="text-green-600 hover:text-green-900" title="Aumentar Stock">
+                        <PlusCircle className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleStockChange(product, -1)} className="text-red-600 hover:text-red-900" title="Disminuir Stock">
+                        <MinusCircle className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
                   <button onClick={() => handleShareToSocial(product)} className="text-indigo-600 hover:text-indigo-900" title="Compartir en Redes Sociales">
                     <Share2 className="w-4 h-4" />
                   </button>

@@ -103,6 +103,9 @@ interface AppContextType {
   settings: Settings | null;
   loading: boolean;
   authLoading: boolean;
+  isAdmin: boolean;
+  isManager: boolean;
+  isSeller: boolean;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   refreshData: () => Promise<void>;
@@ -136,6 +139,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [authLoading, setAuthLoading] = useState(true);
+
+  const isAdmin = currentUser?.role === 'admin';
+  const isManager = currentUser?.role === 'manager';
+  const isSeller = currentUser?.role === 'seller';
 
   // Fetch settings and products immediately, even if not logged in
   useEffect(() => {
@@ -571,7 +578,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AppContext.Provider value={{ 
-      currentUser, users, clients, products, sales, expenses, orders, settings, loading, authLoading,
+      currentUser, users, clients, products, sales, expenses, orders, settings, loading, authLoading, isAdmin, isManager, isSeller,
       loginWithGoogle, logout, refreshData: fetchData, updateSettings, addUser, updateUser, deleteUser, sendWelcomeEmail, addProduct, updateProduct, addClient, updateClient, addSale, updateSale,
       addExpense, updateExpense, addOrder, updateOrder
     }}>
