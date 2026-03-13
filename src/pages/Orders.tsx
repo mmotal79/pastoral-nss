@@ -22,8 +22,8 @@ export default function Orders() {
 
   const [clientSearch, setClientSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
-  const filteredClients = clients.filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase()));
-  const filteredProducts = products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()));
+  const filteredClients = (clients || []).filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase()));
+  const filteredProducts = (products || []).filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +64,7 @@ export default function Orders() {
     setEditingOrder(order);
     setFormData({
       clientId: typeof order.clientId === 'string' ? order.clientId : order.clientId.id || '',
-      items: order.items,
+      items: order.items || [],
       color: order.color,
       design: order.design,
       materials: order.materials,
@@ -83,7 +83,7 @@ export default function Orders() {
       await addSale({
         clientId: typeof order.clientId === 'string' ? order.clientId : order.clientId.id || '',
         date: new Date().toISOString(),
-        items: order.items.map(i => ({ productId: i.productId, quantity: i.quantity, priceUSD: i.priceUSD, name: i.name })),
+        items: (order.items || []).map(i => ({ productId: i.productId, quantity: i.quantity, priceUSD: i.priceUSD, name: i.name })),
         totalUSD: order.estimatedCostUSD,
         status: 'pending',
         payments: []
@@ -95,7 +95,7 @@ export default function Orders() {
 
   const getClientName = (clientId: any) => {
     const id = typeof clientId === 'string' ? clientId : clientId.id;
-    return clients.find(c => c.id === id)?.name || 'Desconocido';
+    return (clients || []).find(c => c.id === id)?.name || 'Desconocido';
   };
 
   const statusColors = {
@@ -261,11 +261,11 @@ export default function Orders() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {orders.map((order) => (
+            {(orders || []).map((order) => (
               <tr key={order.id}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{getClientName(order.clientId)}</td>
                 <td className="px-6 py-4 text-sm text-gray-900">
-                  {order.items.map((item, index) => (
+                  {(order.items || []).map((item, index) => (
                     <div key={index}>{item.name} (x{item.quantity})</div>
                   ))}
                 </td>
