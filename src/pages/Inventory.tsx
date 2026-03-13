@@ -22,12 +22,31 @@ export default function Inventory() {
     const fullText = `${socialText}\n\n🛒 Cómpralo aquí: ${waLink}`;
     
     try {
+      const shareData: any = {
+        title: product.name,
+        text: fullText,
+        url: waLink
+      };
+
+      // Try to include image if it's a base64 string
+      if (product.imageUrl && product.imageUrl.startsWith('data:image')) {
+        try {
+          const response = await fetch(product.imageUrl);
+          const blob = await response.blob();
+          const file = new File([blob], `${product.name.replace(/\s+/g, '_')}.jpg`, { type: 'image/jpeg' });
+          
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            shareData.files = [file];
+            // When sharing files, some platforms ignore the 'url' field or 'text' field.
+            // We keep them just in case.
+          }
+        } catch (err) {
+          console.error('Error preparing image for share:', err);
+        }
+      }
+
       if (navigator.share) {
-        await navigator.share({
-          title: product.name,
-          text: fullText,
-          url: waLink
-        });
+        await navigator.share(shareData);
       } else {
         // Fallback: Copy to clipboard
         await navigator.clipboard.writeText(fullText);
@@ -216,6 +235,7 @@ export default function Inventory() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Imagen</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción RRSS</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Costo (USD)</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio (USD)</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
@@ -236,6 +256,16 @@ export default function Inventory() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
                 <td className="px-6 py-4 text-sm text-gray-500">{product.description}</td>
+                <td className="px-6 py-4 text-sm">
+                  {product.socialDescription ? (
+                    <div className="flex items-center text-green-600">
+                      <span className="mr-1">✅</span>
+                      <span className="truncate max-w-[150px]" title={product.socialDescription}>{product.socialDescription}</span>
+                    </div>
+                  ) : (
+                    <span className="text-red-400 italic">❌ Sin descripción</span>
+                  )}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.costUSD?.toFixed(2) || '0.00'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.priceUSD?.toFixed(2) || '0.00'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-bold">{product.stock}</td>
