@@ -36,7 +36,7 @@ export default function Login() {
     const cleanPhone = corporatePhone.replace(/\D/g, '');
     
     // Create the message
-    let message = `Hola, quisiera información sobre éste artículo: ${product.name}`;
+    let message = `Hola, quisiera información sobre ${product.name}`;
     
     if (product.imageUrl) {
       const longImageUrl = `${window.location.origin}/api/products/${product._id || product.id}/image.jpg`;
@@ -51,13 +51,13 @@ export default function Login() {
         
         if (response.ok) {
           const data = await response.json();
-          message += `\nImagen: ${data.link}`;
+          message += ` y el bitly de la imagen: ${data.link}`;
         } else {
-          message += `\nImagen: ${longImageUrl}`;
+          message += ` y el enlace de la imagen: ${longImageUrl}`;
         }
       } catch (error) {
         console.error('Error shortening URL:', error);
-        message += `\nImagen: ${longImageUrl}`;
+        message += ` y el enlace de la imagen: ${longImageUrl}`;
       }
     }
     

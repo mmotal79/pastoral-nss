@@ -450,12 +450,23 @@ router.post('/utils/shorten', async (req, res) => {
       return res.json({ link: longUrl });
     }
 
-    if (typeof fetch === 'undefined') {
+    // Use global fetch if available, otherwise try to import node-fetch
+    let fetchFn: any = globalThis.fetch;
+    if (!fetchFn) {
+      try {
+        const nodeFetch = await import('node-fetch');
+        fetchFn = nodeFetch.default;
+      } catch (e) {
+        console.error('node-fetch not found and global fetch is missing');
+      }
+    }
+
+    if (!fetchFn) {
       console.warn('fetch is not defined in this environment, returning original URL');
       return res.json({ link: longUrl });
     }
 
-    const response = await fetch('https://api-ssl.bitly.com/v4/shorten', {
+    const response = await fetchFn('https://api-ssl.bitly.com/v4/shorten', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${bitlyToken}`,
