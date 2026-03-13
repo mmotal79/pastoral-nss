@@ -123,15 +123,29 @@ export default function Sales() {
   const handlePaymentSubmit = async () => {
     if (!paymentModalSale || !paymentModalSale._id) return;
 
-    const amountUSD = Number(paymentAmount);
+    const debt = paymentModalSale.totalUSD - calculatePaid(paymentModalSale);
+    let changeUSD = 0;
+    let savedCreditUSD = 0;
+    
+    // Calcular el monto en USD basado en el método
+    let amountUSD = 0;
+    if (paymentMethod === 'cash_usd') {
+      amountUSD = Number(paymentAmount);
+    } else {
+      // Para Bs, Pago Móvil, Transferencia: Dividir entre tasa
+      const amountVED = Number(paymentAmount);
+      const rate = Number(exchangeRate);
+      if (rate <= 0) {
+        alert('Ingrese una tasa de cambio válida mayor a 0');
+        return;
+      }
+      amountUSD = amountVED / rate;
+    }
+
     if (isNaN(amountUSD) || amountUSD <= 0) {
       alert('Ingrese un monto válido');
       return;
     }
-
-    const debt = paymentModalSale.totalUSD - calculatePaid(paymentModalSale);
-    let changeUSD = 0;
-    let savedCreditUSD = 0;
 
     if (amountUSD > debt) {
       if (overpaymentAction === 'change') {
@@ -143,8 +157,8 @@ export default function Sales() {
 
     const newPayment: any = {
       date: new Date(paymentDate).toISOString(),
-      amountUSD: Math.min(amountUSD, debt), // Only record up to the debt amount as paid for this sale
-      amountVED: paymentMethod === 'cash_ved' || paymentMethod === 'mobile_payment' || paymentMethod === 'transfer' ? amountUSD * Number(exchangeRate) : 0,
+      amountUSD: Math.min(amountUSD, debt), // Solo registrar hasta el monto de la deuda
+      amountVED: paymentMethod !== 'cash_usd' ? Number(paymentAmount) : 0,
       exchangeRate: Number(exchangeRate) || 1,
       method: paymentMethod,
       changeUSD,
