@@ -1,15 +1,45 @@
 import React, { useState, useRef } from 'react';
 import { useAppContext, Product } from '../context/AppContext';
-import { Plus, Image as ImageIcon, Edit2, PlusCircle, MinusCircle, Upload } from 'lucide-react';
+import { Plus, Image as ImageIcon, Edit2, PlusCircle, MinusCircle, Upload, Share2 } from 'lucide-react';
 import Modal from '../components/Modal';
 import { compressImage } from '../utils/imageUtils';
 
 export default function Inventory() {
-  const { products, addProduct, updateProduct } = useAppContext();
+  const { products, addProduct, updateProduct, settings } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  const handleShareToSocial = async (product: Product) => {
+    const corporatePhone = settings?.corporatePhone?.replace(/\D/g, '') || '';
+    const socialText = product.socialDescription || product.description || `¡Mira nuestro nuevo producto: ${product.name}!`;
+    
+    // Create the WhatsApp link
+    let waMessage = `Hola, quisiera información sobre ${product.name}`;
+    const waLink = `https://wa.me/${corporatePhone}?text=${encodeURIComponent(waMessage)}`;
+    
+    const fullText = `${socialText}\n\n🛒 Cómpralo aquí: ${waLink}`;
+    
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: product.name,
+          text: fullText,
+          url: waLink
+        });
+      } else {
+        // Fallback: Copy to clipboard
+        await navigator.clipboard.writeText(fullText);
+        alert('¡Texto copiado al portapapeles! Ahora puedes pegarlo en Instagram o Facebook.');
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+      // Fallback: Copy to clipboard
+      await navigator.clipboard.writeText(fullText);
+      alert('¡Texto copiado al portapapeles!');
+    }
+  };
 
   const [formData, setFormData] = useState({
     name: '',
@@ -17,7 +47,8 @@ export default function Inventory() {
     costUSD: '',
     priceUSD: '',
     stock: '',
-    imageUrl: ''
+    imageUrl: '',
+    socialDescription: ''
   });
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,7 +75,8 @@ export default function Inventory() {
       costUSD: Number(formData.costUSD),
       priceUSD: Number(formData.priceUSD),
       stock: Number(formData.stock),
-      imageUrl: formData.imageUrl
+      imageUrl: formData.imageUrl,
+      socialDescription: formData.socialDescription
     };
 
     if (editingProduct && editingProduct._id) {
@@ -66,7 +98,8 @@ export default function Inventory() {
       costUSD: product.costUSD.toString(),
       priceUSD: product.priceUSD.toString(),
       stock: product.stock.toString(),
-      imageUrl: product.imageUrl || ''
+      imageUrl: product.imageUrl || '',
+      socialDescription: product.socialDescription || ''
     });
     setIsModalOpen(true);
   };
@@ -103,6 +136,16 @@ export default function Inventory() {
           <div>
             <label className="block text-sm font-medium text-gray-700">Descripción</label>
             <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Descripción para Redes Sociales (Instagram/Facebook)</label>
+            <textarea 
+              value={formData.socialDescription} 
+              onChange={e => setFormData({...formData, socialDescription: e.target.value})} 
+              placeholder="Escribe aquí lo que se compartirá en redes..."
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border bg-indigo-50" 
+            />
+            <p className="mt-1 text-xs text-indigo-600 font-medium">Este campo es exclusivo para generar el texto de tus publicaciones.</p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -205,6 +248,9 @@ export default function Inventory() {
                   </button>
                   <button onClick={() => handleStockChange(product, -1)} className="text-red-600 hover:text-red-900" title="Disminuir Stock">
                     <MinusCircle className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => handleShareToSocial(product)} className="text-indigo-600 hover:text-indigo-900" title="Compartir en Redes Sociales">
+                    <Share2 className="w-4 h-4" />
                   </button>
                 </td>
               </tr>

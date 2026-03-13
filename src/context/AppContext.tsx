@@ -31,6 +31,7 @@ export interface Product {
   costUSD: number;
   stock: number;
   imageUrl?: string;
+  socialDescription?: string;
 }
 
 export interface Payment {

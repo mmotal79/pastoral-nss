@@ -6,7 +6,8 @@ const productSchema = new mongoose.Schema({
   costUSD: { type: Number, required: true },
   priceUSD: { type: Number, required: true },
   stock: { type: Number, default: 0 },
-  imageUrl: { type: String } // Base64 o URL
+  imageUrl: { type: String }, // Base64 o URL
+  socialDescription: { type: String } // Descripción optimizada para redes sociales
 }, { timestamps: true });
 
 export const Product = mongoose.model('Product', productSchema);
