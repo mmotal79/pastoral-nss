@@ -63,6 +63,27 @@ export default function Orders() {
     p.name.toLowerCase().includes(productSearch.toLowerCase())
   );
 
+  const stats = useMemo(() => {
+    const allOrders = orders || [];
+    const total = allOrders.length;
+    const totalAmount = allOrders.reduce((acc, o) => acc + o.estimatedCostUSD, 0);
+    
+    const pending = allOrders.filter(o => o.status === 'pending');
+    const inProgress = allOrders.filter(o => o.status === 'in_progress');
+    const completed = allOrders.filter(o => o.status === 'completed');
+    
+    return {
+      total,
+      totalAmount,
+      pendingCount: pending.length,
+      pendingAmount: pending.reduce((acc, o) => acc + o.estimatedCostUSD, 0),
+      inProgressCount: inProgress.length,
+      inProgressAmount: inProgress.reduce((acc, o) => acc + o.estimatedCostUSD, 0),
+      completedCount: completed.length,
+      completedAmount: completed.reduce((acc, o) => acc + o.estimatedCostUSD, 0),
+    };
+  }, [orders]);
+
   const handleAddItem = () => {
     if (currentItem.isNew) {
       if (!currentItem.name || !currentItem.quantity || !currentItem.priceUSD) return;
@@ -264,6 +285,84 @@ export default function Orders() {
           <Plus className="w-5 h-5" />
           <span>Nuevo Encargo</span>
         </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-indigo-50 rounded-lg">
+              <Package className="w-5 h-5 text-indigo-600" />
+            </div>
+            <span className="text-xs font-medium text-gray-500 uppercase">Total Encargos</span>
+          </div>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+              <p className="text-sm text-gray-500">Pedidos totales</p>
+            </div>
+            <div className="text-right">
+              <p className="text-lg font-bold text-indigo-600">${stats.totalAmount.toFixed(2)}</p>
+              <p className="text-xs text-gray-400">Valor total</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-yellow-50 rounded-lg">
+              <Clock className="w-5 h-5 text-yellow-600" />
+            </div>
+            <span className="text-xs font-medium text-gray-500 uppercase">Pendientes</span>
+          </div>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{stats.pendingCount}</p>
+              <p className="text-sm text-gray-500">Por iniciar</p>
+            </div>
+            <div className="text-right">
+              <p className="text-lg font-bold text-yellow-600">${stats.pendingAmount.toFixed(2)}</p>
+              <p className="text-xs text-gray-400">En espera</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-blue-50 rounded-lg">
+              <Package className="w-5 h-5 text-blue-600" />
+            </div>
+            <span className="text-xs font-medium text-gray-500 uppercase">En Progreso</span>
+          </div>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{stats.inProgressCount}</p>
+              <p className="text-sm text-gray-500">En producción</p>
+            </div>
+            <div className="text-right">
+              <p className="text-lg font-bold text-blue-600">${stats.inProgressAmount.toFixed(2)}</p>
+              <p className="text-xs text-gray-400">En curso</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-green-50 rounded-lg">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+            </div>
+            <span className="text-xs font-medium text-gray-500 uppercase">Completados</span>
+          </div>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{stats.completedCount}</p>
+              <p className="text-sm text-gray-500">Listos/Entregados</p>
+            </div>
+            <div className="text-right">
+              <p className="text-lg font-bold text-green-600">${stats.completedAmount.toFixed(2)}</p>
+              <p className="text-xs text-gray-400">Venta realizada</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
