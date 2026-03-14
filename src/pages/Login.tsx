@@ -24,6 +24,15 @@ export default function Login() {
 
   const companyName = settings?.companyName || 'Pastoral de Pequeñas Comunidades';
   const corporatePhone = settings?.corporatePhone || '';
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 3);
+  };
   const availableProducts = products.filter(p => p.stock > 0);
 
   const handleWhatsAppInquiry = async (product: any) => {
@@ -74,30 +83,32 @@ export default function Login() {
       <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 overflow-hidden">
               {settings?.logoUrl ? (
-                <img src={settings.logoUrl} alt="Logo" className="h-10 w-10 object-contain" />
+                <img src={settings.logoUrl} alt="Logo" className="h-10 w-10 object-contain flex-shrink-0" />
               ) : (
-                <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
                   <span className="text-indigo-600 font-bold text-sm">PPC</span>
                 </div>
               )}
-              <span className="font-bold text-xl text-gray-900 hidden sm:block">{companyName}</span>
+              <span className="font-bold text-xl text-gray-900 hidden sm:block truncate">{companyName}</span>
+              <span className="font-bold text-xl text-gray-900 sm:hidden truncate">{getInitials(companyName)}</span>
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               {exchangeRate && (
-                <div className="hidden sm:flex flex-col items-end text-xs text-gray-500 mr-2">
+                <div className="flex flex-col items-end text-[10px] sm:text-xs text-gray-500">
                   <span className="font-semibold text-indigo-600">Tasa BCV: {exchangeRate.promedio.toFixed(2)} Bs/$</span>
-                  <span>Act: {new Date(exchangeRate.fechaActualizacion).toLocaleDateString()}</span>
+                  <span className="hidden xs:block">Act: {new Date(exchangeRate.fechaActualizacion).toLocaleDateString()}</span>
                 </div>
               )}
               <button
                 onClick={loginWithGoogle}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
-                <LogIn className="w-5 h-5 mr-2" />
-                Iniciar Sesión
+                <LogIn className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                <span className="hidden xs:inline">Iniciar Sesión</span>
+                <span className="xs:hidden">Entrar</span>
               </button>
             </div>
           </div>

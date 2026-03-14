@@ -17,7 +17,7 @@ import Modal from '../components/Modal';
 import { format, parseISO } from 'date-fns';
 
 export default function Orders() {
-  const { orders, clients, products, addOrder, updateOrder, deleteOrder, addSale, addProduct, refreshData, currentUser } = useAppContext();
+  const { orders, clients, products, addOrder, updateOrder, deleteOrder, addSale, addProduct, refreshData, currentUser, exchangeRate } = useAppContext();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -273,9 +273,15 @@ export default function Orders() {
   return (
     <div className="space-y-6 pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+        <div className="flex flex-col">
           <h1 className="text-2xl font-bold text-gray-900">Encargos Especiales</h1>
           <p className="text-gray-500">Gestión de pedidos personalizados y trabajos a medida</p>
+          {exchangeRate && (
+            <div className="flex items-center space-x-2 text-sm text-indigo-600 font-semibold mt-1">
+              <span>Tasa BCV: {exchangeRate.promedio.toFixed(2)} Bs/$</span>
+              <span className="text-gray-400 text-xs font-normal">Actualizado: {new Date(exchangeRate.fechaActualizacion).toLocaleDateString()}</span>
+            </div>
+          )}
         </div>
         
         <button

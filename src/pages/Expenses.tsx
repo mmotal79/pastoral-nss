@@ -5,7 +5,7 @@ import Modal from '../components/Modal';
 import { format } from 'date-fns';
 
 export default function Expenses() {
-  const { expenses, addExpense, updateExpense } = useAppContext();
+  const { expenses, addExpense, updateExpense, exchangeRate } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [formData, setFormData] = useState({
@@ -55,8 +55,16 @@ export default function Expenses() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Gastos e Insumos</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col">
+          <h1 className="text-2xl font-bold text-gray-900">Gastos e Insumos</h1>
+          {exchangeRate && (
+            <div className="flex items-center space-x-2 text-sm text-indigo-600 font-semibold">
+              <span>Tasa BCV: {exchangeRate.promedio.toFixed(2)} Bs/$</span>
+              <span className="text-gray-400 text-xs font-normal">Actualizado: {new Date(exchangeRate.fechaActualizacion).toLocaleDateString()}</span>
+            </div>
+          )}
+        </div>
         <button 
           onClick={() => {
             setEditingExpense(null);

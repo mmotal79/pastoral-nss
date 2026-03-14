@@ -5,9 +5,18 @@ import { useAppContext } from '../context/AppContext';
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { currentUser, logout, settings } = useAppContext();
+  const { currentUser, logout, settings, exchangeRate } = useAppContext();
 
   const companyName = settings?.companyName || 'Pastoral de Pequeñas Comunidades NSS';
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 3);
+  };
 
   const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -90,19 +99,32 @@ export default function Layout() {
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="flex items-center justify-between h-16 px-4 bg-white border-b border-gray-200 lg:hidden">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 text-gray-500 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-          <div className="flex items-center space-x-2 truncate">
-            {settings?.logoUrl && (
-              <img src={settings.logoUrl} alt="Logo" className="h-6 w-6 object-contain" />
-            )}
-            <span className="text-sm font-semibold text-gray-900 truncate">{companyName}</span>
+          <div className="flex items-center">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 text-gray-500 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 mr-2"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <div className="flex items-center space-x-2 overflow-hidden">
+              {settings?.logoUrl && (
+                <img src={settings.logoUrl} alt="Logo" className="h-6 w-6 object-contain flex-shrink-0" />
+              )}
+              <span className="text-sm font-semibold text-gray-900 truncate sm:hidden">
+                {getInitials(companyName)}
+              </span>
+              <span className="text-sm font-semibold text-gray-900 truncate hidden sm:inline">
+                {companyName}
+              </span>
+            </div>
           </div>
-          <div className="w-6" /> {/* Spacer */}
+
+          {exchangeRate && (
+            <div className="flex flex-col items-end text-[10px] leading-tight text-indigo-600 font-bold mr-2">
+              <span>Tasa: {exchangeRate.promedio.toFixed(2)}</span>
+              <span className="text-gray-400 font-normal">BCV</span>
+            </div>
+          )}
         </header>
 
         <main className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">

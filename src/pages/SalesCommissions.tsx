@@ -17,7 +17,7 @@ import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'da
 import { es } from 'date-fns/locale';
 
 const SalesCommissions: React.FC = () => {
-  const { sales, users, commissions, updateCommission, processCommissionsCut, isAdmin, currentUser } = useAppContext();
+  const { sales, users, commissions, updateCommission, processCommissionsCut, isAdmin, currentUser, exchangeRate } = useAppContext();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [searchTerm, setSearchTerm] = useState('');
@@ -93,9 +93,15 @@ const SalesCommissions: React.FC = () => {
   return (
     <div className="space-y-6 pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+        <div className="flex flex-col">
           <h1 className="text-2xl font-bold text-gray-900">Comisiones de Ventas</h1>
           <p className="text-gray-500">Gestión de pagos y liquidaciones para vendedores</p>
+          {exchangeRate && (
+            <div className="flex items-center space-x-2 text-sm text-indigo-600 font-semibold mt-1">
+              <span>Tasa BCV: {exchangeRate.promedio.toFixed(2)} Bs/$</span>
+              <span className="text-gray-400 text-xs font-normal">Actualizado: {new Date(exchangeRate.fechaActualizacion).toLocaleDateString()}</span>
+            </div>
+          )}
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
