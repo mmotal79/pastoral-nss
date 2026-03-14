@@ -81,9 +81,6 @@ export interface Order {
   id?: string;
   clientId: string | Client;
   items: { productId: string; quantity: number; priceUSD: number; name: string }[];
-  color: string;
-  design: string;
-  materials: string;
   estimatedCostUSD: number;
   orderDate: string;
   deliveryDate: string;

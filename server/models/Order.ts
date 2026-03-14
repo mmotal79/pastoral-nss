@@ -9,9 +9,6 @@ const orderSchema = new mongoose.Schema({
     priceUSD: { type: Number, default: 0 }
   }],
   itemDescription: { type: String },
-  color: { type: String },
-  design: { type: String },
-  materials: { type: String },
   estimatedCostUSD: { type: Number, required: true },
   orderDate: { type: Date, default: Date.now },
   deliveryDate: { type: Date, required: true },

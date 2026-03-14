@@ -26,9 +26,6 @@ export default function Orders() {
     clientId: '',
     items: [] as { productId: string; quantity: number; priceUSD: number; name: string }[],
     itemDescription: '',
-    color: '',
-    design: '',
-    materials: '',
     orderDate: format(new Date(), 'yyyy-MM-dd'),
     deliveryDate: format(new Date(), 'yyyy-MM-dd'),
     estimatedCostUSD: '',
@@ -132,9 +129,6 @@ export default function Orders() {
     const orderData = {
       clientId: formData.clientId,
       items: finalItems as any,
-      color: formData.color,
-      design: formData.design,
-      materials: formData.materials,
       orderDate: new Date(formData.orderDate).toISOString(),
       deliveryDate: new Date(formData.deliveryDate).toISOString(),
       estimatedCostUSD: calculateTotalUSD(),
@@ -154,7 +148,7 @@ export default function Orders() {
     setIsModalOpen(false);
     setEditingOrder(null);
     setFormData({
-      clientId: '', items: [], color: '', design: '', materials: '',
+      clientId: '', items: [],
       orderDate: format(new Date(), 'yyyy-MM-dd'), deliveryDate: format(new Date(), 'yyyy-MM-dd'),
       estimatedCostUSD: '', status: 'pending', itemDescription: ''
     });
@@ -169,9 +163,6 @@ export default function Orders() {
     setFormData({
       clientId: typeof order.clientId === 'string' ? order.clientId : (order.clientId?._id || ''),
       items: order.items || [],
-      color: order.color || '',
-      design: order.design || '',
-      materials: order.materials || '',
       orderDate: format(parseISO(order.orderDate as string), 'yyyy-MM-dd'),
       deliveryDate: format(parseISO(order.deliveryDate as string), 'yyyy-MM-dd'),
       estimatedCostUSD: order.estimatedCostUSD.toString(),
@@ -203,7 +194,7 @@ export default function Orders() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 name: item.name,
-                description: `Producto creado desde encargo. Color: ${order.color || ''}, Diseño: ${order.design || ''}, Materiales: ${order.materials || ''}`,
+                description: `Producto creado desde encargo.`,
                 priceUSD: item.priceUSD,
                 costUSD: 0, // Pending
                 stock: 0 // Will be added when produced
@@ -322,10 +313,6 @@ export default function Orders() {
                           {order.items?.length > 0 
                             ? order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')
                             : 'Sin artículos'}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {order.color && <span className="mr-2">Color: {order.color}</span>}
-                          {order.design && <span className="mr-2">Diseño: {order.design}</span>}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -563,39 +550,6 @@ export default function Orders() {
             <div className="mt-2 text-right">
               <span className="text-sm font-bold text-gray-900">Total Estimado: </span>
               <span className="text-lg font-bold text-indigo-600">${calculateTotalUSD().toFixed(2)}</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 border-t border-gray-100 pt-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
-              <input
-                type="text"
-                value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                placeholder="Ej: Azul"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Diseño</label>
-              <input
-                type="text"
-                value={formData.design}
-                onChange={(e) => setFormData({ ...formData, design: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                placeholder="Ej: Bordado"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Materiales</label>
-              <input
-                type="text"
-                value={formData.materials}
-                onChange={(e) => setFormData({ ...formData, materials: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                placeholder="Ej: Seda"
-              />
             </div>
           </div>
 
