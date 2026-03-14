@@ -9,6 +9,8 @@ import { Expense } from '../models/Expense.js';
 import { User } from '../models/User.js';
 import { Settings } from '../models/Settings.js';
 import { Commission } from '../models/Commission.js';
+import { ExchangeRate } from '../models/ExchangeRate.js';
+import cron from 'node-cron';
 
 const router = express.Router();
 
@@ -67,6 +69,53 @@ router.use((req, res, next) => {
     return res.status(503).json({ error: 'La base de datos no está conectada. Verifica la variable MONGODB_URI en Render.' });
   }
   next();
+});
+
+// ==========================================
+// EXCHANGE RATE
+// ==========================================
+const updateExchangeRate = async () => {
+  try {
+    const response = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
+    if (!response.ok) throw new Error('Failed to fetch exchange rate');
+    const data = await response.json();
+    
+    await ExchangeRate.findOneAndUpdate(
+      {}, 
+      { 
+        promedio: data.promedio, 
+        fechaActualizacion: data.fechaActualizacion,
+        lastChecked: new Date()
+      }, 
+      { upsert: true, new: true }
+    );
+    console.log('✅ Tasa de cambio actualizada:', data.promedio);
+    return data;
+  } catch (error) {
+    console.error('❌ Error actualizando tasa de cambio:', error);
+    return null;
+  }
+};
+
+// Programar actualizaciones a las 6 AM y 4 PM VET (UTC-4)
+// 6 AM VET = 10 AM UTC
+// 4 PM VET = 8 PM UTC
+cron.schedule('0 10,20 * * *', updateExchangeRate);
+
+router.get('/exchange-rate', async (req, res) => {
+  try {
+    let rate = await ExchangeRate.findOne();
+    if (!rate) {
+      const data = await updateExchangeRate();
+      if (data) {
+        rate = await ExchangeRate.findOne();
+      }
+    }
+    res.json(rate);
+  } catch (error: any) {
+    console.error('Error fetching exchange rate:', error);
+    res.status(500).json({ error: error.message || 'Error fetching exchange rate' });
+  }
 });
 
 // ==========================================

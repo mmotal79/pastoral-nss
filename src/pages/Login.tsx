@@ -4,7 +4,7 @@ import { LogIn, Image as ImageIcon, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
-  const { loginWithGoogle, authLoading, currentUser, settings, products } = useAppContext();
+  const { loginWithGoogle, authLoading, currentUser, settings, products, exchangeRate } = useAppContext();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -85,13 +85,21 @@ export default function Login() {
               <span className="font-bold text-xl text-gray-900 hidden sm:block">{companyName}</span>
             </div>
             
-            <button
-              onClick={loginWithGoogle}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              <LogIn className="w-5 h-5 mr-2" />
-              Iniciar Sesión
-            </button>
+            <div className="flex items-center space-x-4">
+              {exchangeRate && (
+                <div className="hidden sm:flex flex-col items-end text-xs text-gray-500 mr-2">
+                  <span className="font-semibold text-indigo-600">Tasa BCV: {exchangeRate.promedio.toFixed(2)} Bs/$</span>
+                  <span>Act: {new Date(exchangeRate.fechaActualizacion).toLocaleDateString()}</span>
+                </div>
+              )}
+              <button
+                onClick={loginWithGoogle}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                <LogIn className="w-5 h-5 mr-2" />
+                Iniciar Sesión
+              </button>
+            </div>
           </div>
         </div>
       </nav>

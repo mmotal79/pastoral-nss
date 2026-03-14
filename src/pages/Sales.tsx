@@ -7,7 +7,7 @@ import html2canvas from 'html2canvas';
 import Modal from '../components/Modal';
 
 export default function Sales() {
-  const { sales, clients, products, addSale, updateSale, settings } = useAppContext();
+  const { sales, clients, products, addSale, updateSale, settings, exchangeRate } = useAppContext();
   const [selectedTicket, setSelectedTicket] = useState<Sale | null>(null);
   const [paymentModalSale, setPaymentModalSale] = useState<Sale | null>(null);
   const ticketRef = useRef<HTMLDivElement>(null);
@@ -112,7 +112,7 @@ export default function Sales() {
   // Payment modal state
   const [paymentMethod, setPaymentMethod] = useState('cash_usd');
   const [paymentAmount, setPaymentAmount] = useState('');
-  const [exchangeRate, setExchangeRate] = useState('');
+  const [paymentExchangeRate, setPaymentExchangeRate] = useState('');
   const [bankSender, setBankSender] = useState('');
   const [bankReceiver, setBankReceiver] = useState('');
   const [reference, setReference] = useState('');
@@ -134,7 +134,7 @@ export default function Sales() {
     } else {
       // Para Bs, Pago Móvil, Transferencia: Dividir entre tasa
       const amountVED = Number(paymentAmount);
-      const rate = Number(exchangeRate);
+      const rate = Number(paymentExchangeRate);
       if (rate <= 0) {
         alert('Ingrese una tasa de cambio válida mayor a 0');
         return;
@@ -159,7 +159,7 @@ export default function Sales() {
       date: new Date(paymentDate).toISOString(),
       amountUSD: Math.min(amountUSD, debt), // Solo registrar hasta el monto de la deuda
       amountVED: paymentMethod !== 'cash_usd' ? Number(paymentAmount) : 0,
-      exchangeRate: Number(exchangeRate) || 1,
+      exchangeRate: Number(paymentExchangeRate) || 1,
       method: paymentMethod,
       changeUSD,
       savedCreditUSD
@@ -186,7 +186,7 @@ export default function Sales() {
     setPaymentModalSale(null);
     // Reset payment form
     setPaymentAmount('');
-    setExchangeRate('');
+    setPaymentExchangeRate('');
     setBankSender('');
     setBankReceiver('');
     setReference('');
@@ -364,7 +364,15 @@ export default function Sales() {
   return (
     <div className="space-y-6 relative">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-900">Ventas y Cuentas por Cobrar</h1>
+        <div className="flex flex-col">
+          <h1 className="text-2xl font-bold text-gray-900">Ventas y Cuentas por Cobrar</h1>
+          {exchangeRate && (
+            <div className="flex items-center space-x-2 text-sm text-indigo-600 font-semibold">
+              <span>Tasa BCV: {exchangeRate.promedio.toFixed(2)} Bs/$</span>
+              <span className="text-gray-400 text-xs font-normal">Actualizado: {new Date(exchangeRate.fechaActualizacion).toLocaleDateString()}</span>
+            </div>
+          )}
+        </div>
         <button 
           onClick={() => setIsModalOpen(true)}
           className="flex items-center justify-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
@@ -630,7 +638,12 @@ export default function Sales() {
                     {sale.status === 'pending' && (
                       <>
                         <button 
-                          onClick={() => setPaymentModalSale(sale)}
+                          onClick={() => {
+                            setPaymentModalSale(sale);
+                            if (exchangeRate) {
+                              setPaymentExchangeRate(exchangeRate.promedio.toString());
+                            }
+                          }}
                           className="text-blue-600 hover:text-blue-900 flex items-center"
                           title="Abonar Pago"
                         >
@@ -689,7 +702,7 @@ export default function Sales() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Tasa de Cambio (Bs/USD)</label>
-                  <input type="number" step="0.01" value={exchangeRate} onChange={e => setExchangeRate(e.target.value)} placeholder="Ej. 36.5" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
+                  <input type="number" step="0.01" value={paymentExchangeRate} onChange={e => setPaymentExchangeRate(e.target.value)} placeholder="Ej. 36.5" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border" />
                 </div>
               </div>
 

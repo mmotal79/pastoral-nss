@@ -105,6 +105,11 @@ export interface Commission {
   createdAt?: string;
 }
 
+export interface ExchangeRate {
+  promedio: number;
+  fechaActualizacion: string;
+}
+
 interface AppContextType {
   currentUser: User | null;
   users: User[];
@@ -115,6 +120,7 @@ interface AppContextType {
   orders: Order[];
   commissions: Commission[];
   settings: Settings | null;
+  exchangeRate: ExchangeRate | null;
   loading: boolean;
   authLoading: boolean;
   isAdmin: boolean;
@@ -156,6 +162,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [exchangeRate, setExchangeRate] = useState<ExchangeRate | null>(null);
   const [loading, setLoading] = useState(true);
   const [authLoading, setAuthLoading] = useState(true);
 
@@ -163,13 +170,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const isManager = currentUser?.role === 'manager';
   const isSeller = currentUser?.role === 'seller';
 
-  // Fetch settings and products immediately, even if not logged in
+  // Fetch settings, products and exchange rate immediately, even if not logged in
   useEffect(() => {
     const fetchPublicData = async () => {
       try {
-        const [settingsRes, productsRes] = await Promise.all([
+        const [settingsRes, productsRes, exchangeRateRes] = await Promise.all([
           fetch('/api/settings'),
-          fetch('/api/products')
+          fetch('/api/products'),
+          fetch('/api/exchange-rate')
         ]);
         if (settingsRes.ok) {
           setSettings(await settingsRes.json());
@@ -177,6 +185,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (productsRes.ok) {
           const data = await productsRes.json();
           setProducts(data.map((d: any) => ({ ...d, id: d._id })));
+        }
+        if (exchangeRateRes.ok) {
+          setExchangeRate(await exchangeRateRes.json());
         }
       } catch (error) {
         console.error('Error fetching public data:', error);
@@ -687,7 +698,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AppContext.Provider value={{ 
-      currentUser, users, clients, products, sales, expenses, orders, commissions, settings, loading, authLoading, isAdmin, isManager, isSeller,
+      currentUser, users, clients, products, sales, expenses, orders, commissions, settings, exchangeRate, loading, authLoading, isAdmin, isManager, isSeller,
       loginWithGoogle, logout, refreshData: fetchData, updateSettings, addUser, updateUser, deleteUser, sendWelcomeEmail, addProduct, updateProduct, addClient, updateClient, addSale, updateSale,
       addExpense, updateExpense, addOrder, updateOrder, deleteOrder, addCommission, updateCommission, processCommissionsCut
     }}>

@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { DollarSign, TrendingUp, TrendingDown, Package } from 'lucide-react';
 
 export default function Dashboard() {
-  const { sales, expenses, products } = useAppContext();
+  const { sales, expenses, products, exchangeRate } = useAppContext();
 
   const totalSales = sales.reduce((acc, sale) => acc + sale.totalUSD, 0);
   const totalExpenses = expenses.reduce((acc, exp) => acc + (exp.amountUSD || 0), 0);
@@ -18,7 +18,15 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Dashboard Gerencial</h1>
+      <div className="flex justify-between items-start">
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard Gerencial</h1>
+        {exchangeRate && (
+          <div className="text-right">
+            <div className="text-sm font-bold text-indigo-600">Tasa BCV: {exchangeRate.promedio.toFixed(2)} Bs/$</div>
+            <div className="text-xs text-gray-500">Actualizado: {new Date(exchangeRate.fechaActualizacion).toLocaleDateString()}</div>
+          </div>
+        )}
+      </div>
       
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <div className="bg-white overflow-hidden shadow rounded-lg">
