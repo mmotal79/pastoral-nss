@@ -54,15 +54,31 @@ export default function Users() {
     setIsModalOpen(true);
   };
 
-  if (currentUser?.role !== 'admin' && currentUser?._id !== editingUser?._id) {
-    return <div className="p-8 text-center text-red-600">Acceso denegado. Solo administradores.</div>;
+  const canManageUser = (user: User) => {
+    if (currentUser?.role === 'admin') return true;
+    if (currentUser?.role === 'manager') {
+      return user.role !== 'admin';
+    }
+    return currentUser?._id === user._id;
+  };
+
+  const filteredUsers = users.filter(user => {
+    if (currentUser?.role === 'admin') return true;
+    if (currentUser?.role === 'manager') {
+      return user.role !== 'admin';
+    }
+    return user._id === currentUser?._id;
+  });
+
+  if (currentUser?.role !== 'admin' && currentUser?.role !== 'manager') {
+    return <div className="p-8 text-center text-red-600">Acceso denegado. Solo administradores y gerentes.</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Usuarios del Sistema</h1>
-        {currentUser?.role === 'admin' && (
+        {(currentUser?.role === 'admin' || currentUser?.role === 'manager') && (
           <button 
             onClick={() => {
               setEditingUser(null);
@@ -89,7 +105,7 @@ export default function Users() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {users.map((user) => (
+            {filteredUsers.map((user) => (
               <tr key={user._id}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
@@ -122,28 +138,32 @@ export default function Users() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex justify-end space-x-2">
-                    <button 
-                      onClick={() => handleSendEmail(user._id!)}
-                      className="text-blue-600 hover:text-blue-900"
-                      title="Enviar Email de Bienvenida"
-                    >
-                      <Mail className="w-5 h-5" />
-                    </button>
-                    <button 
-                      onClick={() => openEditModal(user)}
-                      className="text-indigo-600 hover:text-indigo-900"
-                      title="Editar Usuario"
-                    >
-                      <Edit className="w-5 h-5" />
-                    </button>
-                    {user.role !== 'admin' && (
-                      <button 
-                        onClick={() => handleDelete(user._id!)}
-                        className="text-red-600 hover:text-red-900"
-                        title="Eliminar Usuario"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                    {canManageUser(user) && (
+                      <>
+                        <button 
+                          onClick={() => handleSendEmail(user._id!)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Enviar Email de Bienvenida"
+                        >
+                          <Mail className="w-5 h-5" />
+                        </button>
+                        <button 
+                          onClick={() => openEditModal(user)}
+                          className="text-indigo-600 hover:text-indigo-900"
+                          title="Editar Usuario"
+                        >
+                          <Edit className="w-5 h-5" />
+                        </button>
+                        {user.role !== 'admin' && (
+                          <button 
+                            onClick={() => handleDelete(user._id!)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Eliminar Usuario"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </td>
@@ -165,7 +185,7 @@ export default function Users() {
                 <input
                   type="text"
                   required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
@@ -175,7 +195,7 @@ export default function Users() {
                 <input
                   type="email"
                   required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   disabled={!!editingUser}
@@ -185,13 +205,13 @@ export default function Users() {
               <div>
                 <label className="block text-sm font-medium text-gray-700">Rol</label>
                 <select
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
                 >
                   <option value="seller">Vendedor</option>
                   <option value="manager">Gerente</option>
-                  <option value="admin">Administrador</option>
+                  {currentUser?.role === 'admin' && <option value="admin">Administrador</option>}
                 </select>
               </div>
               <div className="flex items-center">

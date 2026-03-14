@@ -17,21 +17,18 @@ export default function Layout() {
     { to: '/sales', icon: ShoppingCart, label: 'Ventas y Cobros' },
     { to: '/expenses', icon: Receipt, label: 'Gastos' },
     { to: '/orders', icon: ClipboardList, label: 'Encargos' },
+    { to: '/sales-commissions', icon: Receipt, label: 'Comisiones' },
+    { to: '/users', icon: ShieldAlert, label: 'Usuarios' },
+    { to: '/settings', icon: SettingsIcon, label: 'Configuración' },
   ].filter(item => {
     if (currentUser?.role === 'seller') {
-      return !['Dashboard', 'Gastos'].includes(item.label);
+      return !['Dashboard', 'Gastos', 'Usuarios', 'Configuración'].includes(item.label);
+    }
+    if (currentUser?.role === 'manager') {
+      return !['Configuración'].includes(item.label);
     }
     return true;
   });
-
-  if (currentUser?.role === 'admin' || currentUser?.role === 'manager') {
-    navItems.push({ to: '/sales-commissions', icon: Receipt, label: 'Comisiones' });
-  }
-
-  if (currentUser?.role === 'admin') {
-    navItems.push({ to: '/users', icon: ShieldAlert, label: 'Usuarios' });
-    navItems.push({ to: '/settings', icon: SettingsIcon, label: 'Configuración' });
-  }
 
   return (
     <div className="flex h-screen bg-gray-50">

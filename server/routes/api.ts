@@ -450,6 +450,84 @@ router.put('/expenses/:id', async (req, res) => {
   }
 });
 
+// ==========================================
+// COMMISSIONS
+// ==========================================
+router.get('/commissions', async (req, res) => {
+  try {
+    const commissions = await Commission.find().sort({ createdAt: -1 });
+    res.json(commissions);
+  } catch (error: any) {
+    console.error('Error fetching commissions:', error);
+    res.status(500).json({ error: error.message || 'Error fetching commissions' });
+  }
+});
+
+router.post('/commissions', async (req, res) => {
+  try {
+    const commission = new Commission(req.body);
+    await commission.save();
+    res.status(201).json(commission);
+  } catch (error: any) {
+    console.error('Error creating commission:', error);
+    res.status(400).json({ error: error.message || 'Error creating commission' });
+  }
+});
+
+router.put('/commissions/:id', async (req, res) => {
+  try {
+    const commission = await Commission.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(commission);
+  } catch (error: any) {
+    console.error('Error updating commission:', error);
+    res.status(400).json({ error: error.message || 'Error updating commission' });
+  }
+});
+
+router.post('/commissions/process-cut', async (req, res) => {
+  try {
+    const { month, year } = req.body;
+    if (month === undefined || year === undefined) {
+      return res.status(400).json({ error: 'Month and year are required' });
+    }
+
+    // Find all sales for this month/year
+    const startDate = new Date(year, month, 1);
+    const endDate = new Date(year, month + 1, 0, 23, 59, 59);
+
+    const sales = await Sale.find({
+      date: { $gte: startDate.toISOString(), $lte: endDate.toISOString() }
+    });
+
+    let count = 0;
+    for (const sale of sales) {
+      // Check if commission already exists for this sale
+      const existing = await Commission.findOne({ saleId: sale._id });
+      if (!existing) {
+        const seller = await User.findById(sale.sellerId);
+        if (seller && seller.commissionPercentage > 0) {
+          const amount = (sale.totalUSD * seller.commissionPercentage) / 100;
+          const commission = new Commission({
+            sellerId: seller._id,
+            saleId: sale._id,
+            amount,
+            status: 'pendiente',
+            month,
+            year
+          });
+          await commission.save();
+          count++;
+        }
+      }
+    }
+
+    res.json({ success: true, count });
+  } catch (error: any) {
+    console.error('Error processing commissions cut:', error);
+    res.status(500).json({ error: error.message || 'Error processing commissions cut' });
+  }
+});
+
 router.post('/utils/shorten', async (req, res) => {
   try {
     const { longUrl } = req.body;

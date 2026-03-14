@@ -40,9 +40,7 @@ function ProtectedRoutes() {
         <Route path="sales" element={<Sales />} />
         <Route path="expenses" element={<Expenses />} />
         <Route path="orders" element={<Orders />} />
-        {(currentUser.role === 'admin' || currentUser.role === 'manager') && (
-          <Route path="sales-commissions" element={<SalesCommissions />} />
-        )}
+        <Route path="sales-commissions" element={<SalesCommissions />} />
         {currentUser.role === 'admin' && (
           <>
             <Route path="users" element={<Users />} />

@@ -96,6 +96,18 @@ export interface Settings {
   corporatePhone?: string;
 }
 
+export interface Commission {
+  _id?: string;
+  id?: string;
+  sellerId: string;
+  saleId: string;
+  amount: number;
+  status: 'pendiente' | 'pagada';
+  month: number;
+  year: number;
+  createdAt?: string;
+}
+
 interface AppContextType {
   currentUser: User | null;
   users: User[];
@@ -104,6 +116,7 @@ interface AppContextType {
   sales: Sale[];
   expenses: Expense[];
   orders: Order[];
+  commissions: Commission[];
   settings: Settings | null;
   loading: boolean;
   authLoading: boolean;
@@ -128,6 +141,10 @@ interface AppContextType {
   updateExpense: (id: string, expense: Partial<Expense>) => Promise<void>;
   addOrder: (order: Partial<Order>) => Promise<void>;
   updateOrder: (id: string, order: Partial<Order>) => Promise<void>;
+  deleteOrder: (id: string) => Promise<void>;
+  addCommission: (commission: Partial<Commission>) => Promise<void>;
+  updateCommission: (id: string, commission: Partial<Commission>) => Promise<void>;
+  processCommissionsCut: (month: number, year: number) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -140,6 +157,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [sales, setSales] = useState<Sale[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [commissions, setCommissions] = useState<Commission[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [authLoading, setAuthLoading] = useState(true);
@@ -226,12 +244,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [usersRes, clientsRes, salesRes, expensesRes, ordersRes] = await Promise.all([
+      const [usersRes, clientsRes, salesRes, expensesRes, ordersRes, commissionsRes] = await Promise.all([
         fetch('/api/users'),
         fetch('/api/clients'),
         fetch('/api/sales'),
         fetch('/api/expenses'),
-        fetch('/api/orders')
+        fetch('/api/orders'),
+        fetch('/api/commissions')
       ]);
 
       if (usersRes.ok) {
@@ -253,6 +272,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (ordersRes.ok) {
         const data = await ordersRes.json();
         setOrders(data.map((d: any) => ({ ...d, id: d._id })));
+      }
+      if (commissionsRes.ok) {
+        const data = await commissionsRes.json();
+        setCommissions(data.map((d: any) => ({ ...d, id: d._id })));
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -580,11 +603,96 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const deleteOrder = async (id: string) => {
+    try {
+      const res = await fetch(`/api/orders/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setOrders(prev => prev.filter(o => o._id !== id));
+        alert('Encargo eliminado exitosamente');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al eliminar el encargo: ${errorData.error || res.statusText}`);
+      }
+    } catch (error: any) {
+      console.error('Error deleting order:', error);
+      alert(`Error de conexión: ${error.message}`);
+    }
+  };
+
+  const addCommission = async (commission: Partial<Commission>) => {
+    try {
+      const res = await fetch('/api/commissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(commission)
+      });
+      if (res.ok) {
+        const newCommission = await res.json();
+        setCommissions(prev => [{ ...newCommission, id: newCommission._id }, ...prev]);
+      }
+    } catch (error) {
+      console.error('Error adding commission:', error);
+    }
+  };
+
+  const updateCommission = async (id: string, commission: Partial<Commission>) => {
+    try {
+      const res = await fetch(`/api/commissions/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(commission)
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setCommissions(prev => prev.map(c => c._id === id ? { ...updated, id: updated._id } : c));
+        
+        // If status changed to 'pagada', create an expense
+        if (commission.status === 'pagada') {
+          const seller = users.find(u => u._id === updated.sellerId);
+          const isToAdmin = seller?.role === 'admin';
+          const expenseData = {
+            description: isToAdmin ? 'Pago a Proveedor del Sistema' : `Pago de comisión a ${seller?.name}`,
+            amountUSD: updated.amount,
+            amountVED: 0,
+            exchangeRate: 1,
+            date: new Date().toISOString(),
+            category: 'Comisiones'
+          };
+          await addExpense(expenseData);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating commission:', error);
+    }
+  };
+
+  const processCommissionsCut = async (month: number, year: number) => {
+    try {
+      const res = await fetch('/api/commissions/process-cut', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ month, year })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Corte procesado: ${data.count} comisiones generadas.`);
+        fetchData();
+      } else {
+        const errorData = await res.json();
+        alert(`Error al procesar corte: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error processing commissions cut:', error);
+    }
+  };
+
   return (
     <AppContext.Provider value={{ 
-      currentUser, users, clients, products, sales, expenses, orders, settings, loading, authLoading, isAdmin, isManager, isSeller,
+      currentUser, users, clients, products, sales, expenses, orders, commissions, settings, loading, authLoading, isAdmin, isManager, isSeller,
       loginWithGoogle, logout, refreshData: fetchData, updateSettings, addUser, updateUser, deleteUser, sendWelcomeEmail, addProduct, updateProduct, addClient, updateClient, addSale, updateSale,
-      addExpense, updateExpense, addOrder, updateOrder
+      addExpense, updateExpense, addOrder, updateOrder, deleteOrder, addCommission, updateCommission, processCommissionsCut
     }}>
       {children}
     </AppContext.Provider>

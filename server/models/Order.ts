@@ -2,7 +2,13 @@ import mongoose from 'mongoose';
 
 const orderSchema = new mongoose.Schema({
   clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', required: true },
-  itemDescription: { type: String, required: true },
+  items: [{
+    productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+    name: { type: String },
+    quantity: { type: Number, default: 1 },
+    priceUSD: { type: Number, default: 0 }
+  }],
+  itemDescription: { type: String },
   color: { type: String },
   design: { type: String },
   materials: { type: String },
