@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useAppContext, Sale, Client } from '../context/AppContext';
-import { Plus, MessageCircle, Receipt, DollarSign, Download, X, Search, Filter } from 'lucide-react';
+import { Plus, MessageCircle, Receipt, DollarSign, Download, X, Search, Filter, Users, ShoppingBag, Clock, TrendingUp } from 'lucide-react';
 import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import html2canvas from 'html2canvas';
@@ -339,6 +339,28 @@ export default function Sales() {
     });
   }, [sales, dateFrom, dateTo, filterClient, filterStatus, filterProduct]);
 
+  const stats = useMemo(() => {
+    const allSales = sales || [];
+    const totalSalesCount = allSales.length;
+    const totalClientsCount = (clients || []).length;
+    
+    let totalPaid = 0;
+    let totalAmount = 0;
+    
+    allSales.forEach(sale => {
+      totalAmount += sale.totalUSD;
+      totalPaid += sale.payments.reduce((acc, p) => acc + p.amountUSD, 0);
+    });
+
+    return {
+      totalClients: totalClientsCount,
+      totalSales: totalSalesCount,
+      totalAmount,
+      totalPaid,
+      totalPending: Math.max(0, totalAmount - totalPaid)
+    };
+  }, [sales, clients]);
+
   return (
     <div className="space-y-6 relative">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -350,6 +372,73 @@ export default function Sales() {
           <Plus className="w-5 h-5 mr-2" />
           Nueva Venta
         </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-purple-50 rounded-lg">
+              <Users className="w-5 h-5 text-purple-600" />
+            </div>
+            <span className="text-xs font-medium text-gray-500 uppercase">Clientes</span>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">{stats.totalClients}</p>
+            <p className="text-sm text-gray-500">Total registrados</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-blue-50 rounded-lg">
+              <ShoppingBag className="w-5 h-5 text-blue-600" />
+            </div>
+            <span className="text-xs font-medium text-gray-500 uppercase">Ventas</span>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">{stats.totalSales}</p>
+            <p className="text-sm text-gray-500">Operaciones realizadas</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-indigo-50 rounded-lg">
+              <TrendingUp className="w-5 h-5 text-indigo-600" />
+            </div>
+            <span className="text-xs font-medium text-gray-500 uppercase">Total Ventas</span>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">${stats.totalAmount.toFixed(2)}</p>
+            <p className="text-sm text-gray-500">Volumen bruto</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-green-50 rounded-lg">
+              <DollarSign className="w-5 h-5 text-green-600" />
+            </div>
+            <span className="text-xs font-medium text-gray-500 uppercase">Pagado</span>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">${stats.totalPaid.toFixed(2)}</p>
+            <p className="text-sm text-gray-500">Total recaudado</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-red-50 rounded-lg">
+              <Clock className="w-5 h-5 text-red-600" />
+            </div>
+            <span className="text-xs font-medium text-gray-500 uppercase">Por Cobrar</span>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">${stats.totalPending.toFixed(2)}</p>
+            <p className="text-sm text-gray-500">Pendiente de cobro</p>
+          </div>
+        </div>
       </div>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Nueva Venta">
