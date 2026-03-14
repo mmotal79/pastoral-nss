@@ -374,43 +374,19 @@ export default function Sales() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-purple-50 rounded-lg">
-              <Users className="w-5 h-5 text-purple-600" />
-            </div>
-            <span className="text-xs font-medium text-gray-500 uppercase">Clientes</span>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900">{stats.totalClients}</p>
-            <p className="text-sm text-gray-500">Total registrados</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-blue-50 rounded-lg">
-              <ShoppingBag className="w-5 h-5 text-blue-600" />
-            </div>
-            <span className="text-xs font-medium text-gray-500 uppercase">Ventas</span>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900">{stats.totalSales}</p>
-            <p className="text-sm text-gray-500">Operaciones realizadas</p>
-          </div>
-        </div>
-
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <div className="p-2 bg-indigo-50 rounded-lg">
               <TrendingUp className="w-5 h-5 text-indigo-600" />
             </div>
-            <span className="text-xs font-medium text-gray-500 uppercase">Total Ventas</span>
+            <span className="text-xs font-medium text-gray-500 uppercase">Ventas y Operaciones</span>
           </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900">${stats.totalAmount.toFixed(2)}</p>
-            <p className="text-sm text-gray-500">Volumen bruto</p>
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-2xl font-bold text-gray-900">${stats.totalAmount.toFixed(2)}</p>
+              <p className="text-sm text-gray-500">{stats.totalSales} operaciones realizadas</p>
+            </div>
           </div>
         </div>
 
@@ -419,7 +395,7 @@ export default function Sales() {
             <div className="p-2 bg-green-50 rounded-lg">
               <DollarSign className="w-5 h-5 text-green-600" />
             </div>
-            <span className="text-xs font-medium text-gray-500 uppercase">Pagado</span>
+            <span className="text-xs font-medium text-gray-500 uppercase">Total Pagado</span>
           </div>
           <div>
             <p className="text-2xl font-bold text-gray-900">${stats.totalPaid.toFixed(2)}</p>
@@ -432,7 +408,7 @@ export default function Sales() {
             <div className="p-2 bg-red-50 rounded-lg">
               <Clock className="w-5 h-5 text-red-600" />
             </div>
-            <span className="text-xs font-medium text-gray-500 uppercase">Por Cobrar</span>
+            <span className="text-xs font-medium text-gray-500 uppercase">Cuentas por Cobrar</span>
           </div>
           <div>
             <p className="text-2xl font-bold text-gray-900">${stats.totalPending.toFixed(2)}</p>
@@ -651,14 +627,6 @@ export default function Sales() {
                     >
                       <Receipt className="w-5 h-5" />
                     </button>
-                    <button 
-                      onClick={() => handleSendWhatsAppTicket(sale)}
-                      className="text-green-600 hover:text-green-900 flex items-center bg-green-50 hover:bg-green-100 px-2 py-1 rounded-md border border-green-200 transition-colors"
-                      title="Enviar Ticket por WhatsApp"
-                    >
-                      <MessageCircle className="w-4 h-4 mr-1" />
-                      <span className="text-xs font-medium">Enviar Ticket</span>
-                    </button>
                     {sale.status === 'pending' && (
                       <>
                         <button 
@@ -667,14 +635,6 @@ export default function Sales() {
                           title="Abonar Pago"
                         >
                           <DollarSign className="w-5 h-5" />
-                        </button>
-                        <button 
-                          onClick={() => handleWhatsAppReminder(sale)}
-                          className="text-green-700 hover:text-green-900 flex items-center bg-green-50 hover:bg-green-100 px-2 py-1 rounded-md border border-green-200 transition-colors"
-                          title="Recordar pago por WhatsApp"
-                        >
-                          <MessageCircle className="w-4 h-4 mr-1" />
-                          <span className="text-xs font-medium">Recordar Pago</span>
                         </button>
                       </>
                     )}
