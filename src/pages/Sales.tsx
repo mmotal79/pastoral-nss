@@ -91,7 +91,7 @@ export default function Sales() {
 
       await addSale({
         clientId: formData.clientId,
-        date: new Date(formData.date + 'T12:00:00').toISOString(),
+        date: parseISO(formData.date).toISOString(),
         items: finalItems.map(item => ({
           productId: item.productId,
           name: item.name,
@@ -247,7 +247,7 @@ export default function Sales() {
       
       await updateSale(editingSale._id, {
         clientId: formData.clientId,
-        date: new Date(formData.date + 'T12:00:00').toISOString(),
+        date: parseISO(formData.date).toISOString(),
         items: tempItems.map(item => ({
           productId: item.productId,
           name: item.name,
@@ -397,7 +397,7 @@ export default function Sales() {
           link.href = imgData;
           const ticketId = sale.id || sale._id || 'ticket';
           const clientName = client?.name?.replace(/[^a-zA-Z0-9]/g, '_') || 'Cliente';
-          const dateStr = format(new Date(sale.date), 'ddMMyy');
+          const dateStr = format(parseISO(sale.date), 'ddMMyy');
           link.download = `Factura_${clientName}_${dateStr}_${ticketId}.png`;
           document.body.appendChild(link);
           link.click();
@@ -434,12 +434,22 @@ export default function Sales() {
   const filteredSales = useMemo(() => {
     return sales.filter(sale => {
       let match = true;
-      if (dateFrom) {
-        if (new Date(sale.date) < startOfDay(parseISO(dateFrom))) match = false;
+      
+	  //if (dateFrom) {
+      //  if (new Date(sale.date) < startOfDay(parseISO(dateFrom))) match = false;
+      //}
+      //if (dateTo) {
+      //  if (new Date(sale.date) > endOfDay(parseISO(dateTo))) match = false;
+     // }
+	  
+	  if (dateFrom) {
+        // Usamos parseISO en ambos lados para que la comparación sea "manzanas con manzanas" en hora local
+        if (parseISO(sale.date) < startOfDay(parseISO(dateFrom))) match = false;
       }
       if (dateTo) {
-        if (new Date(sale.date) > endOfDay(parseISO(dateTo))) match = false;
+        if (parseISO(sale.date) > endOfDay(parseISO(dateTo))) match = false;
       }
+	  
       if (filterClient && sale.clientId !== filterClient) match = false;
       if (filterStatus && sale.status !== filterStatus) match = false;
       if (filterProduct) {
@@ -730,7 +740,7 @@ export default function Sales() {
               return (
                 <tr key={sale.id || sale._id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedTicket(sale)}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {format(new Date(sale.date), 'dd MMM yyyy', { locale: es })}
+                    {format(parseISO(sale.date), 'dd MMM yyyy', { locale: es })}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {client?.name || 'Desconocido'}
@@ -774,7 +784,7 @@ export default function Sales() {
                             setEditingSale(sale);
                             setFormData({
                               clientId: typeof sale.clientId === 'string' ? sale.clientId : sale.clientId?._id || '',
-                              date: format(new Date(sale.date), 'yyyy-MM-dd')
+                              date: format(parseISO(sale.date), 'yyyy-MM-dd')
                             });
                             setTempItems(sale.items.map(i => ({ ...i, productId: i.productId })));
                             setIsEditModalOpen(true);

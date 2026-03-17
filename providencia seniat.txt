@@ -1,0 +1,29 @@
+Esta es una consulta técnica fundamental. Tras analizar el documento de la providencia del SENIAT que has adjuntado y compararlo con la arquitectura y funcionalidad actual de tu sistema "pastoral-nss", mi evaluación es la siguiente:
+Evaluación de Cumplimiento: NO CUMPLE
+El sistema que hemos desarrollado hasta ahora es una herramienta de gestión interna (CRUD: Crear, Leer, Actualizar, Borrar) diseñada para organizar las operaciones de la Pastoral. Sin embargo, no está diseñado como un sistema de facturación fiscal bajo las normativas del SENIAT.
+Para cumplir con la providencia, el sistema requiere un cambio de arquitectura profundo, pasando de ser una base de datos de gestión a ser un Sistema de Emisión de Documentos Fiscales.
+Requerimientos necesarios para alcanzar la conformidad
+Para que tu sistema cumpla con lo solicitado en el Artículo 3 de la providencia, deberías implementar los siguientes requerimientos técnicos y funcionales:
+1. Integridad y Seguridad (Requisito a)
+Inmutabilidad de registros: Implementar una base de datos donde los registros fiscales una vez creados no puedan ser modificados ni eliminados.
+Auditoría estricta: Implementar mecanismos de firma digital o hashing para garantizar que los registros no han sido alterados.
+2. Integración con SENIAT (Requisitos b y h)
+API de comunicación: Desarrollar un módulo de comunicación (cliente API) que envíe automáticamente cada factura emitida a los servidores del SENIAT.
+API de consulta para SENIAT: Crear un endpoint (interfaz de programación) seguro y autenticado que permita al SENIAT consultar la información de facturación y eventos del sistema en tiempo real.
+3. Registro de Eventos / Logs (Requisito c)
+Sistema de Auditoría (Audit Trail): Implementar un log de eventos automático que registre:
+Inicio/cierre de sesión de usuarios.
+Creación, modificación o anulación de documentos.
+Errores del sistema.
+Acceso a la configuración del sistema.
+Este log debe ser inalterable y tener trazabilidad completa (quién, cuándo, qué).
+4. Gestión de Notas de Crédito/Débito (Requisito d)
+Workflow de anulación: Eliminar la capacidad de "borrar" facturas. Implementar un flujo donde, para corregir un error, el sistema obligue a generar una Nota de Crédito o Débito que referencie el documento original, manteniendo ambos registros en la base de datos.
+5. Trazabilidad y Fechado (Requisito e)
+Servidor de tiempo confiable: Asegurar que todos los registros utilicen un servidor de tiempo sincronizado (NTP) y que cada registro tenga una marca de tiempo (timestamp) inalterable y precisa (fecha y hora).
+6. Normativa Fiscal (Requisitos f y g)
+Motor de Impuestos (IVA): Implementar la lógica contable exacta de la Ley del IVA (cálculos, alícuotas, exenciones, retenciones).
+Formato de Documentos: Asegurar que la emisión de facturas cumpla estrictamente con los formatos, numeración consecutiva y datos obligatorios exigidos por el SENIAT.
+Recomendación
+Si tu objetivo es que este sistema sea utilizado para emitir facturas legales ante el SENIAT, te recomiendo no intentar adaptar el sistema actual mediante parches, sino planificar una migración hacia una arquitectura de facturación fiscal.
+Esto implica que el sistema debe ser certificado o cumplir con los estándares técnicos que el SENIAT exige para los sistemas de facturación electrónica. Desarrollar esto requiere una auditoría técnica dedicada y un desarrollo especializado en las normativas fiscales vigentes.
