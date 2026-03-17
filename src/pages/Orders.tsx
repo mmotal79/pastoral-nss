@@ -115,54 +115,67 @@ export default function Orders() {
     return tempItems.reduce((acc, item) => acc + (item.quantity * item.priceUSD), 0);
   };
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    
     if (!formData.clientId) {
       alert('Por favor, seleccione un cliente');
       return;
     }
 
-    let finalItems = [...tempItems];
-    if (currentItem.isNew && currentItem.name && currentItem.quantity && currentItem.priceUSD) {
-      finalItems.push({
-        name: currentItem.name,
-        description: currentItem.description,
-        quantity: Number(currentItem.quantity),
-        priceUSD: Number(currentItem.priceUSD)
-      });
-    } else if (!currentItem.isNew && currentItem.productId && currentItem.quantity && currentItem.priceUSD) {
-      const product = products.find(p => p.id === currentItem.productId);
-      if (product) {
+    setIsSubmitting(true);
+    
+    try {
+      let finalItems = [...tempItems];
+      if (currentItem.isNew && currentItem.name && currentItem.quantity && currentItem.priceUSD) {
         finalItems.push({
-          productId: product.id!,
-          name: product.name,
+          name: currentItem.name,
+          description: currentItem.description,
           quantity: Number(currentItem.quantity),
           priceUSD: Number(currentItem.priceUSD)
         });
+      } else if (!currentItem.isNew && currentItem.productId && currentItem.quantity && currentItem.priceUSD) {
+        const product = products.find(p => p.id === currentItem.productId);
+        if (product) {
+          finalItems.push({
+            productId: product.id!,
+            name: product.name,
+            quantity: Number(currentItem.quantity),
+            priceUSD: Number(currentItem.priceUSD)
+          });
+        }
       }
-    }
 
-    if (finalItems.length === 0) {
-      alert('Debe agregar al menos un artículo al encargo.');
-      return;
-    }
+      if (finalItems.length === 0) {
+        alert('Debe agregar al menos un artículo al encargo.');
+        setIsSubmitting(false);
+        return;
+      }
 
-    const orderData = {
-      clientId: formData.clientId,
-      items: finalItems as any,
-      orderDate: new Date(formData.orderDate).toISOString(),
-      deliveryDate: new Date(formData.deliveryDate).toISOString(),
-      estimatedCostUSD: calculateTotalUSD(),
-      status: formData.status
-    };
+      const orderData = {
+        clientId: formData.clientId,
+        items: finalItems as any,
+        orderDate: new Date(formData.orderDate + 'T12:00:00').toISOString(),
+        deliveryDate: new Date(formData.deliveryDate + 'T12:00:00').toISOString(),
+        estimatedCostUSD: calculateTotalUSD(),
+        status: formData.status
+      };
 
-    if (editingOrder && editingOrder._id) {
-      await updateOrder(editingOrder._id, orderData);
-    } else {
-      await addOrder(orderData);
+      if (editingOrder && editingOrder._id) {
+        await updateOrder(editingOrder._id, orderData);
+      } else {
+        await addOrder(orderData);
+      }
+      
+      closeModal();
+    } catch (error) {
+      console.error('Error saving order:', error);
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    closeModal();
   };
 
   const closeModal = () => {
@@ -194,17 +207,31 @@ export default function Orders() {
     setIsModalOpen(true);
   };
 
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  const [orderToTransfer, setOrderToTransfer] = useState<Order | null>(null);
+
   const handleDelete = async (id: string) => {
-    if (window.confirm('¿Estás seguro de eliminar este encargo?')) {
-      await deleteOrder(id);
+    setOrderToDelete(id);
+  };
+
+  const confirmDelete = async () => {
+    if (orderToDelete) {
+      await deleteOrder(orderToDelete);
+      setOrderToDelete(null);
     }
   };
 
   const handleTransferToSale = async (order: Order) => {
     if (!order._id) return;
+    setOrderToTransfer(order);
+  };
+
+  const confirmTransfer = async () => {
+    if (!orderToTransfer) return;
+    const order = orderToTransfer;
+    setOrderToTransfer(null);
     
-    if (window.confirm('¿Estás seguro de transferir este encargo a ventas?')) {
-      // Process items: if an item is "new" (no productId), create it in inventory first
+    // Process items: if an item is "new" (no productId), create it in inventory first
       const processedItems = [];
       for (const item of (order.items || [])) {
         if (!item.productId) {
@@ -255,10 +282,10 @@ export default function Orders() {
       // Refresh products to see new ones
       await refreshData();
       window.location.reload(); // Simple way to refresh all data
-    }
   };
 
   const getClientName = (clientId: any) => {
+    if (clientId && clientId.name) return clientId.name;
     const id = typeof clientId === 'string' ? clientId : (clientId?._id || clientId?.id);
     return (clients || []).find(c => c._id === id || c.id === id)?.name || 'Desconocido';
   };
@@ -697,6 +724,56 @@ export default function Orders() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal de Confirmación de Eliminación */}
+      <Modal
+        isOpen={!!orderToDelete}
+        onClose={() => setOrderToDelete(null)}
+        title="Confirmar Eliminación"
+      >
+        <div className="p-4">
+          <p className="text-gray-700 mb-4">¿Estás seguro de eliminar este encargo? Esta acción no se puede deshacer.</p>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setOrderToDelete(null)}
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmDelete}
+              className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors shadow-sm"
+            >
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de Confirmación de Transferencia */}
+      <Modal
+        isOpen={!!orderToTransfer}
+        onClose={() => setOrderToTransfer(null)}
+        title="Confirmar Transferencia"
+      >
+        <div className="p-4">
+          <p className="text-gray-700 mb-4">¿Estás seguro de transferir este encargo a ventas? Esto creará una nueva venta y actualizará el inventario si es necesario.</p>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setOrderToTransfer(null)}
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmTransfer}
+              className="px-4 py-2 text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+            >
+              Transferir
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

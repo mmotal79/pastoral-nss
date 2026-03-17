@@ -7,6 +7,7 @@ import { compressImage } from '../utils/imageUtils';
 export default function Inventory() {
   const { products, addProduct, updateProduct, settings, isSeller } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -134,25 +135,33 @@ export default function Inventory() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const productData = {
-      name: formData.name,
-      description: formData.description,
-      costUSD: Number(formData.costUSD),
-      priceUSD: Number(formData.priceUSD),
-      stock: Number(formData.stock),
-      imageUrl: formData.imageUrl,
-      socialDescription: formData.socialDescription
-    };
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const productData = {
+        name: formData.name,
+        description: formData.description,
+        costUSD: Number(formData.costUSD),
+        priceUSD: Number(formData.priceUSD),
+        stock: Number(formData.stock),
+        imageUrl: formData.imageUrl,
+        socialDescription: formData.socialDescription
+      };
 
-    if (editingProduct && editingProduct._id) {
-      await updateProduct(editingProduct._id, productData);
-    } else {
-      await addProduct(productData);
+      if (editingProduct && editingProduct._id) {
+        await updateProduct(editingProduct._id, productData);
+      } else {
+        await addProduct(productData);
+      }
+      
+      setIsModalOpen(false);
+      setEditingProduct(null);
+      setFormData({ name: '', description: '', costUSD: '', priceUSD: '', stock: '', imageUrl: '', socialDescription: '' });
+    } catch (error) {
+      console.error('Error saving product:', error);
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    setIsModalOpen(false);
-    setEditingProduct(null);
-    setFormData({ name: '', description: '', costUSD: '', priceUSD: '', stock: '', imageUrl: '' });
   };
 
   const openEditModal = (product: Product) => {
@@ -273,7 +282,9 @@ export default function Inventory() {
           </div>
           <div className="pt-4 flex justify-end space-x-2">
             <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancelar</button>
-            <button type="submit" disabled={isUploading} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-400">Guardar</button>
+            <button type="submit" disabled={isUploading || isSubmitting} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-400">
+              {isSubmitting ? 'Guardando...' : 'Guardar'}
+            </button>
           </div>
         </form>
       </Modal>

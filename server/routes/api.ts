@@ -80,17 +80,20 @@ const updateExchangeRate = async () => {
     if (!response.ok) throw new Error('Failed to fetch exchange rate');
     const data = await response.json();
     
-    await ExchangeRate.findOneAndUpdate(
-      {}, 
-      { 
-        promedio: data.promedio, 
-        fechaActualizacion: data.fechaActualizacion,
-        lastChecked: new Date()
-      }, 
-      { upsert: true, new: true }
-    );
-    console.log('✅ Tasa de cambio actualizada:', data.promedio);
-    return data;
+    // Check if we already have this update to avoid duplicates
+    const existing = await ExchangeRate.findOne({ fechaActualizacion: data.fechaActualizacion });
+    if (existing) {
+      console.log('Tasa ya actualizada para:', data.fechaActualizacion);
+      return existing;
+    }
+
+    const newRate = await ExchangeRate.create({ 
+      promedio: data.promedio, 
+      fechaActualizacion: data.fechaActualizacion,
+      lastChecked: new Date()
+    });
+    console.log('✅ Nueva tasa de cambio registrada:', data.promedio);
+    return newRate;
   } catch (error) {
     console.error('❌ Error actualizando tasa de cambio:', error);
     return null;
@@ -104,17 +107,43 @@ cron.schedule('0 10,20 * * *', updateExchangeRate);
 
 router.get('/exchange-rate', async (req, res) => {
   try {
-    let rate = await ExchangeRate.findOne();
+    // Get the most recent rate
+    let rate = await ExchangeRate.findOne().sort({ createdAt: -1 });
     if (!rate) {
       const data = await updateExchangeRate();
       if (data) {
-        rate = await ExchangeRate.findOne();
+        rate = await ExchangeRate.findOne().sort({ createdAt: -1 });
       }
     }
     res.json(rate);
   } catch (error: any) {
     console.error('Error fetching exchange rate:', error);
     res.status(500).json({ error: error.message || 'Error fetching exchange rate' });
+  }
+});
+
+// Get historical rate for a specific date
+router.get('/exchange-rate/history', async (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date) return res.status(400).json({ error: 'Date is required' });
+
+    // Find the rate closest to that date (but not after)
+    const targetDate = new Date(date as string);
+    const rate = await ExchangeRate.findOne({
+      createdAt: { $lte: targetDate }
+    }).sort({ createdAt: -1 });
+
+    if (!rate) {
+      // If no historical rate found, return the oldest one we have or the current one
+      const oldest = await ExchangeRate.findOne().sort({ createdAt: 1 });
+      return res.json(oldest);
+    }
+
+    res.json(rate);
+  } catch (error: any) {
+    console.error('Error fetching historical rate:', error);
+    res.status(500).json({ error: error.message || 'Error fetching historical rate' });
   }
 });
 

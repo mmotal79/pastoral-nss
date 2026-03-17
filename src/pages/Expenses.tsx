@@ -15,24 +15,35 @@ export default function Expenses() {
     category: 'materials'
   });
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const expenseData = {
-      description: formData.description,
-      amountUSD: Number(formData.amountUSD),
-      date: new Date(formData.date).toISOString(),
-      category: formData.category
-    };
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
-    if (editingExpense && editingExpense._id) {
-      await updateExpense(editingExpense._id, expenseData);
-    } else {
-      await addExpense(expenseData);
+    try {
+      const expenseData = {
+        description: formData.description,
+        amountUSD: Number(formData.amountUSD),
+        date: new Date(formData.date + 'T12:00:00').toISOString(),
+        category: formData.category
+      };
+
+      if (editingExpense && editingExpense._id) {
+        await updateExpense(editingExpense._id, expenseData);
+      } else {
+        await addExpense(expenseData);
+      }
+      
+      setIsModalOpen(false);
+      setEditingExpense(null);
+      setFormData({ description: '', amountUSD: '', date: format(new Date(), 'yyyy-MM-dd'), category: 'materials' });
+    } catch (error) {
+      console.error('Error saving expense:', error);
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    setIsModalOpen(false);
-    setEditingExpense(null);
-    setFormData({ description: '', amountUSD: '', date: format(new Date(), 'yyyy-MM-dd'), category: 'materials' });
   };
 
   const openEditModal = (expense: Expense) => {

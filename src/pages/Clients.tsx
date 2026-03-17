@@ -6,6 +6,7 @@ import Modal from '../components/Modal';
 export default function Clients() {
   const { clients, addClient, updateClient } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -16,14 +17,22 @@ export default function Clients() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingClient && editingClient._id) {
-      await updateClient(editingClient._id, formData);
-    } else {
-      await addClient(formData);
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      if (editingClient && editingClient._id) {
+        await updateClient(editingClient._id, formData);
+      } else {
+        await addClient(formData);
+      }
+      setIsModalOpen(false);
+      setEditingClient(null);
+      setFormData({ name: '', phone: '', email: '', address: '' });
+    } catch (error) {
+      console.error('Error saving client:', error);
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsModalOpen(false);
-    setEditingClient(null);
-    setFormData({ name: '', phone: '', email: '', address: '' });
   };
 
   const openEditModal = (client: Client) => {
@@ -74,7 +83,9 @@ export default function Clients() {
           </div>
           <div className="pt-4 flex justify-end space-x-2">
             <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancelar</button>
-            <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Guardar</button>
+            <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50">
+              {isSubmitting ? 'Guardando...' : 'Guardar'}
+            </button>
           </div>
         </form>
       </Modal>

@@ -53,16 +53,16 @@ const SalesCommissions: React.FC = () => {
   }, [commissions, selectedMonth, selectedYear, searchTerm, statusFilter, users, currentUser]);
 
   const summary = useMemo(() => {
-    const totalCommissions = filteredCommissions.reduce((sum, c) => sum + c.amount, 0);
-    const paidCommissions = filteredCommissions.filter(c => c.status === 'pagada').reduce((sum, c) => sum + c.amount, 0);
-    const pendingCommissions = filteredCommissions.filter(c => c.status === 'pendiente').reduce((sum, c) => sum + c.amount, 0);
+    const totalCommissions = Math.round(filteredCommissions.reduce((sum, c) => sum + c.amount, 0) * 100) / 100;
+    const paidCommissions = Math.round(filteredCommissions.filter(c => c.status === 'pagada').reduce((sum, c) => sum + c.amount, 0) * 100) / 100;
+    const pendingCommissions = Math.round(filteredCommissions.filter(c => c.status === 'pendiente').reduce((sum, c) => sum + c.amount, 0) * 100) / 100;
     
     // Total sales for the selected month (only for matching month, not past pending)
     const monthSales = sales.filter(s => {
       const date = parseISO(s.date);
       return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
     });
-    const totalSalesAmount = monthSales.reduce((sum, s) => sum + s.totalUSD, 0);
+    const totalSalesAmount = Math.round(monthSales.reduce((sum, s) => sum + s.totalUSD, 0) * 100) / 100;
 
     return {
       totalSalesAmount,

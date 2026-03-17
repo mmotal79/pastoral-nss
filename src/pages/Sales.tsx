@@ -57,48 +57,60 @@ export default function Sales() {
     return tempItems.reduce((acc, item) => acc + (item.quantity * item.priceUSD), 0);
   };
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
+
   const handleNewSaleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     
-    let finalItems = [...tempItems];
-    
-    // Si el usuario seleccionó un producto pero olvidó darle al botón "+", lo añadimos automáticamente
-    if (currentItem.productId && currentItem.quantity && currentItem.priceUSD) {
-      const product = products.find(p => p.id === currentItem.productId);
-      if (product) {
-        finalItems.push({
-          productId: product.id!,
-          name: product.name,
-          quantity: Number(currentItem.quantity),
-          priceUSD: Number(currentItem.priceUSD)
-        });
+    try {
+      let finalItems = [...tempItems];
+      
+      // Si el usuario seleccionó un producto pero olvidó darle al botón "+", lo añadimos automáticamente
+      if (currentItem.productId && currentItem.quantity && currentItem.priceUSD) {
+        const product = products.find(p => p.id === currentItem.productId);
+        if (product) {
+          finalItems.push({
+            productId: product.id!,
+            name: product.name,
+            quantity: Number(currentItem.quantity),
+            priceUSD: Number(currentItem.priceUSD)
+          });
+        }
       }
-    }
 
-    if (finalItems.length === 0) {
-      alert('Debe agregar al menos un artículo a la venta.');
-      return;
-    }
-    
-    const totalUSD = finalItems.reduce((acc, item) => acc + (item.quantity * item.priceUSD), 0);
+      if (finalItems.length === 0) {
+        alert('Debe agregar al menos un artículo a la venta.');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      const totalUSD = finalItems.reduce((acc, item) => acc + (item.quantity * item.priceUSD), 0);
 
-    await addSale({
-      clientId: formData.clientId,
-      date: new Date(formData.date).toISOString(),
-      items: finalItems.map(item => ({
-        productId: item.productId,
-        name: item.name,
-        quantity: item.quantity,
-        priceUSD: item.priceUSD
-      })),
-      totalUSD: totalUSD,
-      status: 'pending',
-      payments: []
-    });
-    setIsModalOpen(false);
-    setFormData({ clientId: '', date: format(new Date(), 'yyyy-MM-dd') });
-    setTempItems([]);
-    setCurrentItem({ productId: '', quantity: '1', priceUSD: '' });
+      await addSale({
+        clientId: formData.clientId,
+        date: new Date(formData.date + 'T12:00:00').toISOString(),
+        items: finalItems.map(item => ({
+          productId: item.productId,
+          name: item.name,
+          quantity: item.quantity,
+          priceUSD: item.priceUSD
+        })),
+        totalUSD: totalUSD,
+        status: 'pending',
+        payments: []
+      });
+      setIsModalOpen(false);
+      setFormData({ clientId: '', date: format(new Date(), 'yyyy-MM-dd') });
+      setTempItems([]);
+      setCurrentItem({ productId: '', quantity: '1', priceUSD: '' });
+    } catch (error) {
+      console.error('Error creating sale:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Filters state
@@ -120,78 +132,177 @@ export default function Sales() {
   const [phoneSender, setPhoneSender] = useState('');
   const [overpaymentAction, setOverpaymentAction] = useState('change'); // 'change' or 'credit'
 
-  const handlePaymentSubmit = async () => {
-    if (!paymentModalSale || !paymentModalSale._id) return;
+  // Fetch historical rate when payment date changes
+  useEffect(() => {
+    const fetchHistoricalRate = async () => {
+      if (!paymentDate) return;
+      try {
+        const res = await fetch(`/api/exchange-rate/history?date=${paymentDate}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.promedio) {
+            setPaymentExchangeRate(data.promedio.toString());
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching historical rate:', error);
+      }
+    };
+    fetchHistoricalRate();
+  }, [paymentDate]);
 
-    const debt = paymentModalSale.totalUSD - calculatePaid(paymentModalSale);
-    let changeUSD = 0;
-    let savedCreditUSD = 0;
-    
-    // Calcular el monto en USD basado en el método
-    let amountUSD = 0;
-    if (paymentMethod === 'cash_usd') {
-      amountUSD = Number(paymentAmount);
-    } else {
-      // Para Bs, Pago Móvil, Transferencia: Dividir entre tasa
-      const amountVED = Number(paymentAmount);
-      const rate = Number(paymentExchangeRate);
-      if (rate <= 0) {
-        alert('Ingrese una tasa de cambio válida mayor a 0');
+  const handlePaymentSubmit = async () => {
+    if (!paymentModalSale || !paymentModalSale._id || isPaymentSubmitting) return;
+    setIsPaymentSubmitting(true);
+
+    try {
+      const debt = paymentModalSale.totalUSD - calculatePaid(paymentModalSale);
+      let changeUSD = 0;
+      let savedCreditUSD = 0;
+      
+      // Calcular el monto en USD basado en el método
+      let amountUSD = 0;
+      if (paymentMethod === 'cash_usd') {
+        amountUSD = Number(paymentAmount);
+      } else {
+        // Para Bs, Pago Móvil, Transferencia: Dividir entre tasa
+        const amountVED = Number(paymentAmount);
+        const rate = Number(paymentExchangeRate);
+        if (rate <= 0) {
+          alert('Ingrese una tasa de cambio válida mayor a 0');
+          setIsPaymentSubmitting(false);
+          return;
+        }
+        amountUSD = Number((amountVED / rate).toFixed(2));
+      }
+
+      if (isNaN(amountUSD) || amountUSD <= 0) {
+        alert('Ingrese un monto válido');
+        setIsPaymentSubmitting(false);
         return;
       }
-      amountUSD = amountVED / rate;
-    }
 
-    if (isNaN(amountUSD) || amountUSD <= 0) {
-      alert('Ingrese un monto válido');
-      return;
-    }
-
-    if (amountUSD > debt) {
-      if (overpaymentAction === 'change') {
-        changeUSD = amountUSD - debt;
-      } else {
-        savedCreditUSD = amountUSD - debt;
+      if (amountUSD > debt) {
+        if (overpaymentAction === 'change') {
+          changeUSD = amountUSD - debt;
+        } else {
+          savedCreditUSD = amountUSD - debt;
+        }
       }
-    }
 
-    const newPayment: any = {
-      date: new Date(paymentDate).toISOString(),
-      amountUSD: Math.min(amountUSD, debt), // Solo registrar hasta el monto de la deuda
-      amountVED: paymentMethod !== 'cash_usd' ? Number(paymentAmount) : 0,
-      exchangeRate: Number(paymentExchangeRate) || 1,
-      method: paymentMethod,
-      changeUSD,
-      savedCreditUSD
-    };
+      const newPayment: any = {
+        date: new Date(paymentDate + 'T12:00:00').toISOString(),
+        amountUSD: Math.min(amountUSD, debt), // Solo registrar hasta el monto de la deuda
+        amountVED: paymentMethod !== 'cash_usd' ? Number(paymentAmount) : 0,
+        exchangeRate: Number(paymentExchangeRate) || 1,
+        method: paymentMethod,
+        changeUSD,
+        savedCreditUSD
+      };
 
-    if (paymentMethod === 'mobile_payment' || paymentMethod === 'transfer') {
-      newPayment.bankSender = bankSender;
-      newPayment.bankReceiver = bankReceiver;
-      newPayment.reference = reference;
-      if (paymentMethod === 'mobile_payment') {
-        newPayment.phoneSender = phoneSender;
+      if (paymentMethod === 'mobile_payment' || paymentMethod === 'transfer') {
+        newPayment.bankSender = bankSender;
+        newPayment.bankReceiver = bankReceiver;
+        newPayment.reference = reference;
+        if (paymentMethod === 'mobile_payment') {
+          newPayment.phoneSender = phoneSender;
+        }
       }
+
+      const updatedPayments = [...paymentModalSale.payments, newPayment];
+      const newPaidTotal = updatedPayments.reduce((acc, p) => acc + p.amountUSD, 0);
+      const newStatus = newPaidTotal >= paymentModalSale.totalUSD ? 'paid' : 'pending';
+
+      await updateSale(paymentModalSale._id, {
+        payments: updatedPayments,
+        status: newStatus
+      });
+
+      setPaymentModalSale(null);
+      // Reset payment form
+      setPaymentAmount('');
+      setPaymentExchangeRate('');
+      setBankSender('');
+      setBankReceiver('');
+      setReference('');
+      setPhoneSender('');
+      setPaymentDate(format(new Date(), 'yyyy-MM-dd'));
+    } catch (error) {
+      console.error('Error processing payment:', error);
+    } finally {
+      setIsPaymentSubmitting(false);
     }
+  };
 
-    const updatedPayments = [...paymentModalSale.payments, newPayment];
-    const newPaidTotal = updatedPayments.reduce((acc, p) => acc + p.amountUSD, 0);
-    const newStatus = newPaidTotal >= paymentModalSale.totalUSD ? 'paid' : 'pending';
+  const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-    await updateSale(paymentModalSale._id, {
-      payments: updatedPayments,
-      status: newStatus
-    });
+  const handleEditSaleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSale || !editingSale._id || isSubmitting) return;
+    setIsSubmitting(true);
 
-    setPaymentModalSale(null);
-    // Reset payment form
-    setPaymentAmount('');
-    setPaymentExchangeRate('');
-    setBankSender('');
-    setBankReceiver('');
-    setReference('');
-    setPhoneSender('');
-    setPaymentDate(format(new Date(), 'yyyy-MM-dd'));
+    try {
+      const totalUSD = tempItems.reduce((acc, item) => acc + (item.quantity * item.priceUSD), 0);
+      
+      await updateSale(editingSale._id, {
+        clientId: formData.clientId,
+        date: new Date(formData.date + 'T12:00:00').toISOString(),
+        items: tempItems.map(item => ({
+          productId: item.productId,
+          name: item.name,
+          quantity: item.quantity,
+          priceUSD: item.priceUSD
+        })),
+        totalUSD: totalUSD
+      });
+
+      setIsEditModalOpen(false);
+      setEditingSale(null);
+      setFormData({ clientId: '', date: format(new Date(), 'yyyy-MM-dd') });
+      setTempItems([]);
+    } catch (error) {
+      console.error('Error updating sale:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteSale = async (id: string) => {
+    if (!window.confirm('¿Está seguro de eliminar esta venta? Esta acción no se puede deshacer.')) return;
+    try {
+      await deleteSale(id);
+    } catch (error) {
+      console.error('Error deleting sale:', error);
+    }
+  };
+
+  const handleDeletePayment = async (saleId: string, paymentId: string) => {
+    if (!window.confirm('¿Estás seguro de eliminar este pago?')) return;
+    try {
+      const sale = sales.find(s => s._id === saleId || s.id === saleId);
+      if (!sale) return;
+
+      const updatedPayments = sale.payments.filter(p => p.id !== paymentId);
+      const newPaidTotal = updatedPayments.reduce((acc, p) => acc + p.amountUSD, 0);
+      const newStatus = newPaidTotal >= sale.totalUSD ? 'paid' : 'pending';
+
+      await updateSale(saleId, {
+        payments: updatedPayments,
+        status: newStatus
+      });
+
+      // Update selected ticket if open
+      if (selectedTicket && (selectedTicket._id === saleId || selectedTicket.id === saleId)) {
+        setSelectedTicket({
+          ...selectedTicket,
+          payments: updatedPayments,
+          status: newStatus
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting payment:', error);
+    }
   };
 
   const getClient = (clientId: string | Client) => {
@@ -651,6 +762,32 @@ export default function Sales() {
                         </button>
                       </>
                     )}
+                    {isAdmin && (
+                      <>
+                        <button 
+                          onClick={() => {
+                            setEditingSale(sale);
+                            setFormData({
+                              clientId: typeof sale.clientId === 'string' ? sale.clientId : sale.clientId?._id || '',
+                              date: format(new Date(sale.date), 'yyyy-MM-dd')
+                            });
+                            setTempItems(sale.items.map(i => ({ ...i, productId: i.productId })));
+                            setIsEditModalOpen(true);
+                          }}
+                          className="text-amber-600 hover:text-amber-900 flex items-center"
+                          title="Editar Venta (Admin)"
+                        >
+                          <Edit2 className="w-5 h-5" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteSale(sale._id!)}
+                          className="text-red-600 hover:text-red-900 flex items-center"
+                          title="Eliminar Venta (Admin)"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </>
+                    )}
                   </td>
                 </tr>
               );
@@ -665,6 +802,134 @@ export default function Sales() {
           </tbody>
         </table>
       </div>
+
+      {/* Modal Editar Venta (Admin) */}
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Editar Venta (Admin)">
+        <form onSubmit={handleEditSaleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Cliente</label>
+              <select 
+                required 
+                value={formData.clientId} 
+                onChange={e => setFormData({...formData, clientId: e.target.value})}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
+              >
+                <option value="">Seleccione un cliente</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Fecha</label>
+              <input 
+                type="date" 
+                required 
+                value={formData.date} 
+                onChange={e => setFormData({...formData, date: e.target.value})}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
+              />
+            </div>
+          </div>
+
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <h3 className="text-sm font-bold text-gray-900 mb-3">Agregar Artículo</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="md:col-span-2">
+                <label className="block text-xs font-medium text-gray-700">Producto</label>
+                <select 
+                  value={currentItem.productId} 
+                  onChange={e => {
+                    const product = products.find(p => p.id === e.target.value);
+                    if (product) {
+                      setCurrentItem({
+                        ...currentItem,
+                        productId: product.id!,
+                        priceUSD: product.priceUSD.toString()
+                      });
+                    }
+                  }}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
+                >
+                  <option value="">Seleccione un producto</option>
+                  {products.map(p => <option key={p.id} value={p.id}>{p.name} (${p.priceUSD})</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700">Cantidad</label>
+                <input 
+                  type="number" 
+                  min="1" 
+                  value={currentItem.quantity} 
+                  onChange={e => setCurrentItem({...currentItem, quantity: e.target.value})}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700">Precio Unit. ($)</label>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  value={currentItem.priceUSD} 
+                  onChange={e => setCurrentItem({...currentItem, priceUSD: e.target.value})}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
+                />
+              </div>
+              <div className="flex items-end">
+                <button 
+                  type="button" 
+                  onClick={handleAddItem}
+                  className="w-full flex items-center justify-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm"
+                >
+                  <Plus className="w-4 h-4 mr-1" /> Añadir
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {tempItems.length > 0 && (
+            <div className="border rounded-lg overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Cant</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Precio</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Subtotal</th>
+                    <th className="px-4 py-2"></th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {tempItems.map((item, idx) => (
+                    <tr key={idx}>
+                      <td className="px-4 py-2 text-sm text-gray-900">{item.name}</td>
+                      <td className="px-4 py-2 text-sm text-gray-500 text-right">{item.quantity}</td>
+                      <td className="px-4 py-2 text-sm text-gray-500 text-right">${item.priceUSD.toFixed(2)}</td>
+                      <td className="px-4 py-2 text-sm text-gray-900 text-right font-medium">${(item.quantity * item.priceUSD).toFixed(2)}</td>
+                      <td className="px-4 py-2 text-right">
+                        <button type="button" onClick={() => handleRemoveItem(idx)} className="text-red-500 hover:text-red-700">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-gray-50">
+                  <tr>
+                    <td colSpan={3} className="px-4 py-3 text-right text-sm font-bold text-gray-900">Total:</td>
+                    <td className="px-4 py-3 text-right text-sm font-bold text-indigo-600">${calculateTotalUSD().toFixed(2)}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+
+          <div className="pt-4 flex justify-end space-x-2 border-t border-gray-200 mt-4">
+            <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancelar</button>
+            <button type="submit" disabled={tempItems.length === 0 || isSubmitting} className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50">Guardar Cambios</button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Modal Registrar Pago */}
       {paymentModalSale && (
@@ -823,7 +1088,18 @@ export default function Sales() {
                       <li key={p.id} className="text-xs p-2 rounded" style={{ backgroundColor: '#f9fafb' }}>
                         <div className="flex justify-between">
                           <span style={{ color: '#000000' }}>{format(new Date(p.date), 'dd/MM/yy')}</span>
-                          <span className="font-bold" style={{ color: '#16a34a' }}>+${p.amountUSD.toFixed(2)}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold" style={{ color: '#16a34a' }}>+${p.amountUSD.toFixed(2)}</span>
+                            {isAdmin && (
+                              <button 
+                                onClick={() => handleDeletePayment(selectedTicket._id!, p.id)}
+                                className="text-red-500 hover:text-red-700"
+                                title="Eliminar Pago"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <div className="flex justify-between mt-1" style={{ color: '#6b7280' }}>
                           <span>{getPaymentMethodLabel(p.method)} {p.bank ? `(${p.bank})` : ''}</span>
