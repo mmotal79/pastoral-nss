@@ -97,9 +97,14 @@ const SalesCommissions: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Comisiones de Ventas</h1>
           <p className="text-gray-500">Gestión de pagos y liquidaciones para vendedores</p>
           {exchangeRate && (
-            <div className="flex items-center space-x-2 text-sm text-indigo-600 font-semibold mt-1">
-              <span>Tasa BCV: {exchangeRate.promedio.toFixed(2)} Bs/$</span>
-              <span className="text-gray-400 text-xs font-normal">Actualizado: {new Date(exchangeRate.fechaActualizacion).toLocaleDateString()}</span>
+            <div className="flex flex-col text-sm text-indigo-600 font-semibold mt-1">
+              <div className="flex items-center space-x-2">
+                <span>Tasa BCV: {exchangeRate.promedio.toFixed(2)} Bs/$</span>
+                <span className="text-gray-400 text-xs font-normal">Actualización BCV: {new Date(exchangeRate.fechaActualizacion).toLocaleString('es-VE', { timeZone: 'America/Caracas' })}</span>
+              </div>
+              <div className="text-[10px] text-gray-400 font-normal">
+                Sincronizado: {new Date(exchangeRate.lastChecked).toLocaleString('es-VE', { timeZone: 'America/Caracas' })}
+              </div>
             </div>
           )}
         </div>

@@ -84,6 +84,9 @@ const updateExchangeRate = async () => {
     const existing = await ExchangeRate.findOne({ fechaActualizacion: data.fechaActualizacion });
     if (existing) {
       console.log('Tasa ya actualizada para:', data.fechaActualizacion);
+      // Update lastChecked anyway to know when we last verified it
+      existing.lastChecked = new Date();
+      await existing.save();
       return existing;
     }
 
@@ -109,12 +112,17 @@ router.get('/exchange-rate', async (req, res) => {
   try {
     // Get the most recent rate
     let rate = await ExchangeRate.findOne().sort({ createdAt: -1 });
-    if (!rate) {
-      const data = await updateExchangeRate();
-      if (data) {
-        rate = await ExchangeRate.findOne().sort({ createdAt: -1 });
+    
+    // If no rate exists or it's older than 2 hours, try to update
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    if (!rate || rate.createdAt < twoHoursAgo) {
+      console.log('Tasa de cambio ausente o antigua, intentando actualizar...');
+      const updatedRate = await updateExchangeRate();
+      if (updatedRate) {
+        rate = updatedRate;
       }
     }
+    
     res.json(rate);
   } catch (error: any) {
     console.error('Error fetching exchange rate:', error);

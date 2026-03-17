@@ -478,9 +478,14 @@ export default function Sales() {
         <div className="flex flex-col">
           <h1 className="text-2xl font-bold text-gray-900">Ventas y Cuentas por Cobrar</h1>
           {exchangeRate && (
-            <div className="flex items-center space-x-2 text-sm text-indigo-600 font-semibold">
-              <span>Tasa BCV: {exchangeRate.promedio.toFixed(2)} Bs/$</span>
-              <span className="text-gray-400 text-xs font-normal">Actualizado: {new Date(exchangeRate.fechaActualizacion).toLocaleDateString()}</span>
+            <div className="flex flex-col text-sm text-indigo-600 font-semibold">
+              <div className="flex items-center space-x-2">
+                <span>Tasa BCV: {exchangeRate.promedio.toFixed(2)} Bs/$</span>
+                <span className="text-gray-400 text-xs font-normal">Actualización BCV: {new Date(exchangeRate.fechaActualizacion).toLocaleString('es-VE', { timeZone: 'America/Caracas' })}</span>
+              </div>
+              <div className="text-[10px] text-gray-400 font-normal">
+                Sincronizado: {new Date(exchangeRate.lastChecked).toLocaleString('es-VE', { timeZone: 'America/Caracas' })}
+              </div>
             </div>
           )}
         </div>
@@ -1047,7 +1052,7 @@ export default function Sales() {
                 )}
                 <h2 className="text-xl font-bold" style={{ color: '#000000' }}>{settings?.companyName || 'PASTORAL DE PEQUEÑAS COMUNIDADES NSS'}</h2>
                 <p style={{ color: '#6b7280' }}>Ticket de Venta #{(selectedTicket.id || selectedTicket._id || '').padStart(5, '0')}</p>
-                <p style={{ color: '#6b7280' }}>{format(new Date(selectedTicket.date), 'dd/MM/yyyy HH:mm')}</p>
+                <p style={{ color: '#6b7280' }}>{format(new Date(selectedTicket.payments.length > 0 ? selectedTicket.payments[selectedTicket.payments.length - 1].date : selectedTicket.date), 'dd/MM/yyyy HH:mm')}</p>
               </div>
               
               <div className="mb-4 border-b border-dashed pb-4" style={{ borderColor: '#d1d5db' }}>
