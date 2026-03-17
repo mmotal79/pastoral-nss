@@ -138,10 +138,13 @@ interface AppContextType {
   updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
   addClient: (client: Partial<Client>) => Promise<void>;
   updateClient: (id: string, client: Partial<Client>) => Promise<void>;
+  deleteClient: (id: string) => Promise<void>;
   addSale: (sale: Partial<Sale>) => Promise<void>;
   updateSale: (id: string, sale: Partial<Sale>) => Promise<void>;
+  deleteSale: (id: string) => Promise<void>;
   addExpense: (expense: Partial<Expense>) => Promise<void>;
   updateExpense: (id: string, expense: Partial<Expense>) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
   addOrder: (order: Partial<Order>) => Promise<void>;
   updateOrder: (id: string, order: Partial<Order>) => Promise<void>;
   deleteOrder: (id: string) => Promise<void>;
@@ -479,6 +482,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const deleteClient = async (id: string) => {
+    try {
+      const res = await fetch(`/api/clients/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setClients(prev => prev.filter(c => c._id !== id));
+        alert('Cliente eliminado exitosamente');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al eliminar el cliente: ${errorData.error || res.statusText}`);
+      }
+    } catch (error: any) {
+      console.error('Error deleting client:', error);
+      alert(`Error de conexión: ${error.message}`);
+    }
+  };
+
   const addSale = async (sale: Partial<Sale>) => {
     try {
       const res = await fetch('/api/sales', {
@@ -527,6 +548,25 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const deleteSale = async (id: string) => {
+    try {
+      const res = await fetch(`/api/sales/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setSales(prev => prev.filter(s => s._id !== id));
+        alert('Venta eliminada exitosamente');
+        fetchData(); // Refresh to update stock
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al eliminar la venta: ${errorData.error || res.statusText}`);
+      }
+    } catch (error: any) {
+      console.error('Error deleting sale:', error);
+      alert(`Error de conexión: ${error.message}`);
+    }
+  };
+
   const addExpense = async (expense: Partial<Expense>) => {
     try {
       const res = await fetch('/api/expenses', {
@@ -565,6 +605,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error: any) {
       console.error('Error updating expense:', error);
+      alert(`Error de conexión: ${error.message}`);
+    }
+  };
+
+  const deleteExpense = async (id: string) => {
+    try {
+      const res = await fetch(`/api/expenses/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setExpenses(prev => prev.filter(e => e._id !== id));
+        alert('Gasto eliminado exitosamente');
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Error al eliminar el gasto: ${errorData.error || res.statusText}`);
+      }
+    } catch (error: any) {
+      console.error('Error deleting expense:', error);
       alert(`Error de conexión: ${error.message}`);
     }
   };
@@ -699,8 +757,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   return (
     <AppContext.Provider value={{ 
       currentUser, users, clients, products, sales, expenses, orders, commissions, settings, exchangeRate, loading, authLoading, isAdmin, isManager, isSeller,
-      loginWithGoogle, logout, refreshData: fetchData, updateSettings, addUser, updateUser, deleteUser, sendWelcomeEmail, addProduct, updateProduct, addClient, updateClient, addSale, updateSale,
-      addExpense, updateExpense, addOrder, updateOrder, deleteOrder, addCommission, updateCommission, processCommissionsCut
+      loginWithGoogle, logout, refreshData: fetchData, updateSettings, addUser, updateUser, deleteUser, sendWelcomeEmail, addProduct, updateProduct, addClient, updateClient, deleteClient, addSale, updateSale, deleteSale,
+      addExpense, updateExpense, deleteExpense, addOrder, updateOrder, deleteOrder, addCommission, updateCommission, processCommissionsCut
     }}>
       {children}
     </AppContext.Provider>

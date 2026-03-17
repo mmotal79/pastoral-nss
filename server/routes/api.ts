@@ -408,6 +408,16 @@ router.put('/clients/:id', async (req, res) => {
   }
 });
 
+router.delete('/clients/:id', async (req, res) => {
+  try {
+    await Client.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Error deleting client:', error);
+    res.status(400).json({ error: error.message || 'Error deleting client' });
+  }
+});
+
 // ==========================================
 // SALES
 // ==========================================
@@ -447,6 +457,23 @@ router.put('/sales/:id', async (req, res) => {
   } catch (error: any) {
     console.error('Error updating sale:', error);
     res.status(400).json({ error: error.message || 'Error updating sale' });
+  }
+});
+
+router.delete('/sales/:id', async (req, res) => {
+  try {
+    const sale = await Sale.findById(req.params.id);
+    if (sale && sale.items && sale.items.length > 0) {
+      // Restore product stock
+      for (const item of sale.items) {
+        await Product.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } });
+      }
+    }
+    await Sale.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Error deleting sale:', error);
+    res.status(400).json({ error: error.message || 'Error deleting sale' });
   }
 });
 
@@ -525,6 +552,16 @@ router.put('/expenses/:id', async (req, res) => {
   } catch (error: any) {
     console.error('Error updating expense:', error);
     res.status(400).json({ error: error.message || 'Error updating expense' });
+  }
+});
+
+router.delete('/expenses/:id', async (req, res) => {
+  try {
+    await Expense.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Error deleting expense:', error);
+    res.status(400).json({ error: error.message || 'Error deleting expense' });
   }
 });
 

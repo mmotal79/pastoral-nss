@@ -1,13 +1,13 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useAppContext, Sale, Client } from '../context/AppContext';
-import { Plus, MessageCircle, Receipt, DollarSign, Download, X, Search, Filter, Users, ShoppingBag, Clock, TrendingUp } from 'lucide-react';
+import { Plus, MessageCircle, Receipt, DollarSign, Download, X, Search, Filter, Users, ShoppingBag, Clock, TrendingUp, Edit2, Trash2 } from 'lucide-react';
 import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import html2canvas from 'html2canvas';
 import Modal from '../components/Modal';
 
 export default function Sales() {
-  const { sales, clients, products, addSale, updateSale, settings, exchangeRate } = useAppContext();
+  const { sales, clients, products, addSale, updateSale, deleteSale, settings, exchangeRate, isAdmin, refreshData } = useAppContext();
   const [selectedTicket, setSelectedTicket] = useState<Sale | null>(null);
   const [paymentModalSale, setPaymentModalSale] = useState<Sale | null>(null);
   const ticketRef = useRef<HTMLDivElement>(null);
