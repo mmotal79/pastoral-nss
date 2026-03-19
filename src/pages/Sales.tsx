@@ -6,15 +6,27 @@ import { es } from 'date-fns/locale';
 import html2canvas from 'html2canvas';
 import Modal from '../components/Modal';
 
-const formatDateUTC = (dateString: string, formatStr: string, options?: any) => {
+const formatDisplayDate = (dateString: string, formatStr: string, options?: any) => {
   if (!dateString) return '';
   const d = new Date(dateString);
-  const utcDate = new Date(d.getTime() + d.getTimezoneOffset() * 60000);
-  return format(utcDate, formatStr, options);
+  // Fix for old records saved at midnight UTC which would shift to previous day in local time
+  if (dateString.includes('T00:00:00.000Z') || dateString.includes('T00:00:00.000+00:00')) {
+    const utcDate = new Date(d.getTime() + d.getTimezoneOffset() * 60000);
+    return format(utcDate, formatStr, options);
+  }
+  return format(d, formatStr, options);
+};
+
+const getLocalDatetime = (dateString: string) => {
+  if (!dateString) return new Date().toISOString();
+  const now = new Date();
+  const [year, month, day] = dateString.split('-');
+  const d = new Date(Number(year), Number(month) - 1, Number(day), now.getHours(), now.getMinutes(), now.getSeconds());
+  return d.toISOString();
 };
 
 export default function Sales() {
-  const { sales, clients, products, addSale, updateSale, deleteSale, settings, exchangeRate, isAdmin, refreshData } = useAppContext();
+  const { sales, clients, products, addSale, updateSale, deleteSale, settings, exchangeRate, isAdmin, refreshData, currentUser, users, addCommission, commissions } = useAppContext();
   const [selectedTicket, setSelectedTicket] = useState<Sale | null>(null);
   const [paymentModalSale, setPaymentModalSale] = useState<Sale | null>(null);
   const ticketRef = useRef<HTMLDivElement>(null);
@@ -98,7 +110,7 @@ export default function Sales() {
 
       await addSale({
         clientId: formData.clientId,
-        date: new Date(formData.date + 'T12:00:00').toISOString(),
+        date: getLocalDatetime(formData.date),
         items: finalItems.map(item => ({
           productId: item.productId,
           name: item.name,
@@ -107,6 +119,7 @@ export default function Sales() {
         })),
         totalUSD: totalUSD,
         status: 'pending',
+        sellerId: currentUser?.id || currentUser?._id,
         payments: []
       });
       setIsModalOpen(false);
@@ -198,7 +211,7 @@ export default function Sales() {
       }
 
       const newPayment: any = {
-        date: new Date(paymentDate + 'T12:00:00').toISOString(),
+        date: getLocalDatetime(paymentDate),
         amountUSD: Math.min(amountUSD, debt), // Solo registrar hasta el monto de la deuda
         amountVED: paymentMethod !== 'cash_usd' ? Number(paymentAmount) : 0,
         exchangeRate: Number(paymentExchangeRate) || 1,
@@ -224,6 +237,26 @@ export default function Sales() {
         payments: updatedPayments,
         status: newStatus
       });
+
+      // Generar comisión automáticamente si la venta está pagada
+      if (newStatus === 'paid' && paymentModalSale.sellerId) {
+        const existingCommission = commissions.find(c => c.saleId === paymentModalSale._id);
+        if (!existingCommission) {
+          const seller = users.find(u => u.id === paymentModalSale.sellerId || u._id === paymentModalSale.sellerId);
+          if (seller && seller.commissionPercentage && seller.commissionPercentage > 0) {
+            const commissionAmount = (paymentModalSale.totalUSD * seller.commissionPercentage) / 100;
+            const saleDate = new Date(paymentModalSale.date);
+            await addCommission({
+              sellerId: seller.id || seller._id,
+              saleId: paymentModalSale._id,
+              amount: commissionAmount,
+              status: 'pendiente',
+              month: saleDate.getMonth(),
+              year: saleDate.getFullYear()
+            });
+          }
+        }
+      }
 
       setPaymentModalSale(null);
       // Reset payment form
@@ -254,7 +287,7 @@ export default function Sales() {
       
       await updateSale(editingSale._id, {
         clientId: formData.clientId,
-        date: new Date(formData.date + 'T12:00:00').toISOString(),
+        date: getLocalDatetime(formData.date),
         items: tempItems.map(item => ({
           productId: item.productId,
           name: item.name,
@@ -355,7 +388,7 @@ export default function Sales() {
         link.href = imgData;
         const ticketId = selectedTicket.id || selectedTicket._id || 'ticket';
         const clientName = getClient(selectedTicket.clientId)?.name?.replace(/[^a-zA-Z0-9]/g, '_') || 'Cliente';
-        const dateStr = formatDateUTC(selectedTicket.date, 'ddMMyy');
+        const dateStr = formatDisplayDate(selectedTicket.date, 'ddMMyy');
         link.download = `Factura_${clientName}_${dateStr}_${ticketId}.png`;
         document.body.appendChild(link);
         link.click();
@@ -404,7 +437,7 @@ export default function Sales() {
           link.href = imgData;
           const ticketId = sale.id || sale._id || 'ticket';
           const clientName = client?.name?.replace(/[^a-zA-Z0-9]/g, '_') || 'Cliente';
-          const dateStr = formatDateUTC(sale.date, 'ddMMyy');
+          const dateStr = formatDisplayDate(sale.date, 'ddMMyy');
           link.download = `Factura_${clientName}_${dateStr}_${ticketId}.png`;
           document.body.appendChild(link);
           link.click();
@@ -737,7 +770,7 @@ export default function Sales() {
               return (
                 <tr key={sale.id || sale._id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedTicket(sale)}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDateUTC(sale.date, 'dd MMM yyyy', { locale: es })}
+                    {formatDisplayDate(sale.date, 'dd MMM yyyy', { locale: es })}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {client?.name || 'Desconocido'}
@@ -781,7 +814,7 @@ export default function Sales() {
                             setEditingSale(sale);
                             setFormData({
                               clientId: typeof sale.clientId === 'string' ? sale.clientId : sale.clientId?._id || '',
-                              date: formatDateUTC(sale.date, 'yyyy-MM-dd')
+                              date: formatDisplayDate(sale.date, 'yyyy-MM-dd')
                             });
                             setTempItems(sale.items.map(i => ({ ...i, productId: i.productId })));
                             setIsEditModalOpen(true);
@@ -1059,7 +1092,7 @@ export default function Sales() {
                 )}
                 <h2 className="text-xl font-bold" style={{ color: '#000000' }}>{settings?.companyName || 'PASTORAL DE PEQUEÑAS COMUNIDADES NSS'}</h2>
                 <p style={{ color: '#6b7280' }}>Ticket de Venta #{(selectedTicket.id || selectedTicket._id || '').padStart(5, '0')}</p>
-                <p style={{ color: '#6b7280' }}>{formatDateUTC(selectedTicket.date, 'dd/MM/yyyy HH:mm')}</p>
+                <p style={{ color: '#6b7280' }}>{formatDisplayDate(selectedTicket.date, 'dd/MM/yyyy HH:mm')}</p>
               </div>
               
               <div className="mb-4 border-b border-dashed pb-4" style={{ borderColor: '#d1d5db' }}>
@@ -1099,7 +1132,7 @@ export default function Sales() {
                     {selectedTicket.payments.map(p => (
                       <li key={p.id} className="text-xs p-2 rounded" style={{ backgroundColor: '#f9fafb' }}>
                         <div className="flex justify-between">
-                          <span style={{ color: '#000000' }}>{formatDateUTC(p.date, 'dd/MM/yy')}</span>
+                          <span style={{ color: '#000000' }}>{formatDisplayDate(p.date, 'dd/MM/yy')}</span>
                           <div className="flex items-center gap-2">
                             <span className="font-bold" style={{ color: '#16a34a' }}>+${p.amountUSD.toFixed(2)}</span>
                             {isAdmin && (

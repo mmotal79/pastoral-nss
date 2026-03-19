@@ -16,6 +16,24 @@ import {
 import Modal from '../components/Modal';
 import { format, parseISO } from 'date-fns';
 
+const formatDisplayDate = (dateString: string, formatStr: string, options?: any) => {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  if (dateString.includes('T00:00:00.000Z') || dateString.includes('T00:00:00.000+00:00')) {
+    const utcDate = new Date(d.getTime() + d.getTimezoneOffset() * 60000);
+    return format(utcDate, formatStr, options);
+  }
+  return format(d, formatStr, options);
+};
+
+const getLocalDatetime = (dateString: string) => {
+  if (!dateString) return new Date().toISOString();
+  const now = new Date();
+  const [year, month, day] = dateString.split('-');
+  const d = new Date(Number(year), Number(month) - 1, Number(day), now.getHours(), now.getMinutes(), now.getSeconds());
+  return d.toISOString();
+};
+
 export default function Orders() {
   const { orders, clients, products, addOrder, updateOrder, deleteOrder, addSale, addProduct, refreshData, currentUser, exchangeRate } = useAppContext();
   
@@ -158,8 +176,8 @@ export default function Orders() {
       const orderData = {
         clientId: formData.clientId,
         items: finalItems as any,
-        orderDate: new Date(formData.orderDate + 'T12:00:00').toISOString(),
-        deliveryDate: new Date(formData.deliveryDate + 'T12:00:00').toISOString(),
+        orderDate: getLocalDatetime(formData.orderDate),
+        deliveryDate: getLocalDatetime(formData.deliveryDate),
         estimatedCostUSD: calculateTotalUSD(),
         status: formData.status
       };
@@ -197,8 +215,8 @@ export default function Orders() {
     setFormData({
       clientId: typeof order.clientId === 'string' ? order.clientId : (order.clientId?._id || ''),
       items: order.items || [],
-      orderDate: format(parseISO(order.orderDate as string), 'yyyy-MM-dd'),
-      deliveryDate: format(parseISO(order.deliveryDate as string), 'yyyy-MM-dd'),
+      orderDate: formatDisplayDate(order.orderDate as string, 'yyyy-MM-dd'),
+      deliveryDate: formatDisplayDate(order.deliveryDate as string, 'yyyy-MM-dd'),
       estimatedCostUSD: order.estimatedCostUSD.toString(),
       status: order.status,
       itemDescription: ''
@@ -450,7 +468,7 @@ export default function Orders() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center text-sm text-gray-500">
                           <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-                          {format(parseISO(order.deliveryDate as string), 'dd/MM/yyyy')}
+                          {formatDisplayDate(order.deliveryDate as string, 'dd/MM/yyyy')}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

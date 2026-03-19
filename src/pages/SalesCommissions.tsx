@@ -16,6 +16,15 @@ import {
 import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
+const parseDisplayDate = (dateString: string) => {
+  if (!dateString) return new Date();
+  const d = new Date(dateString);
+  if (dateString.includes('T00:00:00.000Z') || dateString.includes('T00:00:00.000+00:00')) {
+    return new Date(d.getTime() + d.getTimezoneOffset() * 60000);
+  }
+  return d;
+};
+
 const SalesCommissions: React.FC = () => {
   const { sales, users, commissions, updateCommission, processCommissionsCut, isAdmin, currentUser, exchangeRate } = useAppContext();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
@@ -59,7 +68,7 @@ const SalesCommissions: React.FC = () => {
     
     // Total sales for the selected month (only for matching month, not past pending)
     const monthSales = sales.filter(s => {
-      const date = parseISO(s.date);
+      const date = parseDisplayDate(s.date);
       return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
     });
     const totalSalesAmount = Math.round(monthSales.reduce((sum, s) => sum + s.totalUSD, 0) * 100) / 100;
@@ -262,7 +271,7 @@ const SalesCommissions: React.FC = () => {
                         <div className="text-xs text-gray-500">Ref: {sale?._id?.substring(0, 8)}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {sale ? format(parseISO(sale.date), 'dd/MM/yyyy') : '-'}
+                        {sale ? format(parseDisplayDate(sale.date), 'dd/MM/yyyy') : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-bold text-gray-900">${commission.amount.toFixed(2)}</div>

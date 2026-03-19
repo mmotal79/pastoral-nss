@@ -4,6 +4,15 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { DollarSign, TrendingUp, TrendingDown, Clock, Filter } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, parseISO, startOfDay, endOfDay } from 'date-fns';
 
+const parseDisplayDate = (dateString: string) => {
+  if (!dateString) return new Date();
+  const d = new Date(dateString);
+  if (dateString.includes('T00:00:00.000Z') || dateString.includes('T00:00:00.000+00:00')) {
+    return new Date(d.getTime() + d.getTimezoneOffset() * 60000);
+  }
+  return d;
+};
+
 export default function Dashboard() {
   const { sales, expenses, exchangeRate } = useAppContext();
   
@@ -14,11 +23,12 @@ export default function Dashboard() {
   const filteredSales = useMemo(() => {
     return sales.filter(sale => {
       let match = true;
+      const saleDate = parseDisplayDate(sale.date);
       if (dateFrom) {
-        if (new Date(sale.date) < startOfDay(parseISO(dateFrom))) match = false;
+        if (saleDate < startOfDay(parseISO(dateFrom))) match = false;
       }
       if (dateTo) {
-        if (new Date(sale.date) > endOfDay(parseISO(dateTo))) match = false;
+        if (saleDate > endOfDay(parseISO(dateTo))) match = false;
       }
       return match;
     });
@@ -27,11 +37,12 @@ export default function Dashboard() {
   const filteredExpenses = useMemo(() => {
     return expenses.filter(exp => {
       let match = true;
+      const expDate = parseDisplayDate(exp.date);
       if (dateFrom) {
-        if (new Date(exp.date) < startOfDay(parseISO(dateFrom))) match = false;
+        if (expDate < startOfDay(parseISO(dateFrom))) match = false;
       }
       if (dateTo) {
-        if (new Date(exp.date) > endOfDay(parseISO(dateTo))) match = false;
+        if (expDate > endOfDay(parseISO(dateTo))) match = false;
       }
       return match;
     });

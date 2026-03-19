@@ -4,6 +4,24 @@ import { Plus, Edit2 } from 'lucide-react';
 import Modal from '../components/Modal';
 import { format } from 'date-fns';
 
+const formatDisplayDate = (dateString: string, formatStr: string, options?: any) => {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  if (dateString.includes('T00:00:00.000Z') || dateString.includes('T00:00:00.000+00:00')) {
+    const utcDate = new Date(d.getTime() + d.getTimezoneOffset() * 60000);
+    return format(utcDate, formatStr, options);
+  }
+  return format(d, formatStr, options);
+};
+
+const getLocalDatetime = (dateString: string) => {
+  if (!dateString) return new Date().toISOString();
+  const now = new Date();
+  const [year, month, day] = dateString.split('-');
+  const d = new Date(Number(year), Number(month) - 1, Number(day), now.getHours(), now.getMinutes(), now.getSeconds());
+  return d.toISOString();
+};
+
 export default function Expenses() {
   const { expenses, addExpense, updateExpense, exchangeRate } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -26,7 +44,7 @@ export default function Expenses() {
       const expenseData = {
         description: formData.description,
         amountUSD: Number(formData.amountUSD),
-        date: new Date(formData.date + 'T12:00:00').toISOString(),
+        date: getLocalDatetime(formData.date),
         category: formData.category
       };
 
@@ -51,7 +69,7 @@ export default function Expenses() {
     setFormData({
       description: expense.description,
       amountUSD: expense.amountUSD.toString(),
-      date: format(new Date(expense.date), 'yyyy-MM-dd'),
+      date: formatDisplayDate(expense.date, 'yyyy-MM-dd'),
       category: expense.category
     });
     setIsModalOpen(true);
@@ -133,7 +151,7 @@ export default function Expenses() {
           <tbody className="bg-white divide-y divide-gray-200">
             {expenses.map((expense) => (
               <tr key={expense.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{format(new Date(expense.date), 'dd/MM/yyyy')}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDisplayDate(expense.date, 'dd/MM/yyyy')}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{expense.description}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{categoryLabels[expense.category] || expense.category}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.amountUSD?.toFixed(2) || '0.00'}</td>
