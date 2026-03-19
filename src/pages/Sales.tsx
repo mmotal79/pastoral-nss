@@ -6,6 +6,13 @@ import { es } from 'date-fns/locale';
 import html2canvas from 'html2canvas';
 import Modal from '../components/Modal';
 
+const formatDateUTC = (dateString: string, formatStr: string, options?: any) => {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  const utcDate = new Date(d.getTime() + d.getTimezoneOffset() * 60000);
+  return format(utcDate, formatStr, options);
+};
+
 export default function Sales() {
   const { sales, clients, products, addSale, updateSale, deleteSale, settings, exchangeRate, isAdmin, refreshData } = useAppContext();
   const [selectedTicket, setSelectedTicket] = useState<Sale | null>(null);
@@ -91,7 +98,7 @@ export default function Sales() {
 
       await addSale({
         clientId: formData.clientId,
-        date: parseISO(formData.date).toISOString(),
+        date: new Date(formData.date + 'T12:00:00').toISOString(),
         items: finalItems.map(item => ({
           productId: item.productId,
           name: item.name,
@@ -247,7 +254,7 @@ export default function Sales() {
       
       await updateSale(editingSale._id, {
         clientId: formData.clientId,
-        date: parseISO(formData.date).toISOString(),
+        date: new Date(formData.date + 'T12:00:00').toISOString(),
         items: tempItems.map(item => ({
           productId: item.productId,
           name: item.name,
@@ -348,7 +355,7 @@ export default function Sales() {
         link.href = imgData;
         const ticketId = selectedTicket.id || selectedTicket._id || 'ticket';
         const clientName = getClient(selectedTicket.clientId)?.name?.replace(/[^a-zA-Z0-9]/g, '_') || 'Cliente';
-        const dateStr = format(new Date(selectedTicket.date), 'ddMMyy');
+        const dateStr = formatDateUTC(selectedTicket.date, 'ddMMyy');
         link.download = `Factura_${clientName}_${dateStr}_${ticketId}.png`;
         document.body.appendChild(link);
         link.click();
@@ -397,7 +404,7 @@ export default function Sales() {
           link.href = imgData;
           const ticketId = sale.id || sale._id || 'ticket';
           const clientName = client?.name?.replace(/[^a-zA-Z0-9]/g, '_') || 'Cliente';
-          const dateStr = format(parseISO(sale.date), 'ddMMyy');
+          const dateStr = formatDateUTC(sale.date, 'ddMMyy');
           link.download = `Factura_${clientName}_${dateStr}_${ticketId}.png`;
           document.body.appendChild(link);
           link.click();
@@ -434,22 +441,12 @@ export default function Sales() {
   const filteredSales = useMemo(() => {
     return sales.filter(sale => {
       let match = true;
-      
-	  //if (dateFrom) {
-      //  if (new Date(sale.date) < startOfDay(parseISO(dateFrom))) match = false;
-      //}
-      //if (dateTo) {
-      //  if (new Date(sale.date) > endOfDay(parseISO(dateTo))) match = false;
-     // }
-	  
-	  if (dateFrom) {
-        // Usamos parseISO en ambos lados para que la comparación sea "manzanas con manzanas" en hora local
-        if (parseISO(sale.date) < startOfDay(parseISO(dateFrom))) match = false;
+      if (dateFrom) {
+        if (new Date(sale.date) < startOfDay(parseISO(dateFrom))) match = false;
       }
       if (dateTo) {
-        if (parseISO(sale.date) > endOfDay(parseISO(dateTo))) match = false;
+        if (new Date(sale.date) > endOfDay(parseISO(dateTo))) match = false;
       }
-	  
       if (filterClient && sale.clientId !== filterClient) match = false;
       if (filterStatus && sale.status !== filterStatus) match = false;
       if (filterProduct) {
@@ -740,7 +737,7 @@ export default function Sales() {
               return (
                 <tr key={sale.id || sale._id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedTicket(sale)}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {format(parseISO(sale.date), 'dd MMM yyyy', { locale: es })}
+                    {formatDateUTC(sale.date, 'dd MMM yyyy', { locale: es })}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {client?.name || 'Desconocido'}
@@ -784,7 +781,7 @@ export default function Sales() {
                             setEditingSale(sale);
                             setFormData({
                               clientId: typeof sale.clientId === 'string' ? sale.clientId : sale.clientId?._id || '',
-                              date: format(parseISO(sale.date), 'yyyy-MM-dd')
+                              date: formatDateUTC(sale.date, 'yyyy-MM-dd')
                             });
                             setTempItems(sale.items.map(i => ({ ...i, productId: i.productId })));
                             setIsEditModalOpen(true);
@@ -1062,7 +1059,7 @@ export default function Sales() {
                 )}
                 <h2 className="text-xl font-bold" style={{ color: '#000000' }}>{settings?.companyName || 'PASTORAL DE PEQUEÑAS COMUNIDADES NSS'}</h2>
                 <p style={{ color: '#6b7280' }}>Ticket de Venta #{(selectedTicket.id || selectedTicket._id || '').padStart(5, '0')}</p>
-                <p style={{ color: '#6b7280' }}>{format(new Date(selectedTicket.payments.length > 0 ? selectedTicket.payments[selectedTicket.payments.length - 1].date : selectedTicket.date), 'dd/MM/yyyy HH:mm')}</p>
+                <p style={{ color: '#6b7280' }}>{formatDateUTC(selectedTicket.date, 'dd/MM/yyyy HH:mm')}</p>
               </div>
               
               <div className="mb-4 border-b border-dashed pb-4" style={{ borderColor: '#d1d5db' }}>
@@ -1102,7 +1099,7 @@ export default function Sales() {
                     {selectedTicket.payments.map(p => (
                       <li key={p.id} className="text-xs p-2 rounded" style={{ backgroundColor: '#f9fafb' }}>
                         <div className="flex justify-between">
-                          <span style={{ color: '#000000' }}>{format(new Date(p.date), 'dd/MM/yy')}</span>
+                          <span style={{ color: '#000000' }}>{formatDateUTC(p.date, 'dd/MM/yy')}</span>
                           <div className="flex items-center gap-2">
                             <span className="font-bold" style={{ color: '#16a34a' }}>+${p.amountUSD.toFixed(2)}</span>
                             {isAdmin && (
