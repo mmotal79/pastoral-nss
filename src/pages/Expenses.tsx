@@ -79,6 +79,8 @@ export default function Expenses() {
     'materials': 'Materiales',
     'equipment': 'Equipos',
     'services': 'Servicios',
+    'payroll': 'Nómina',
+    'supplies': 'Insumos',
     'other': 'Otros'
   };
 
@@ -126,7 +128,9 @@ export default function Expenses() {
             <select required value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border">
               <option value="materials">Materiales</option>
               <option value="equipment">Equipos</option>
+              <option value="supplies">Insumos</option>
               <option value="services">Servicios</option>
+              <option value="payroll">Nómina</option>
               <option value="other">Otros</option>
             </select>
           </div>

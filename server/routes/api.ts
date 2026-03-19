@@ -14,6 +14,57 @@ import cron from 'node-cron';
 
 const router = express.Router();
 
+// Helper function to calculate commissions automatically
+async function calculateCommissions(sale: any) {
+  if (sale.status !== 'paid') return;
+
+  try {
+    const users = await User.find({ commissionPercentage: { $gt: 0 } });
+    const seller = await User.findById(sale.sellerId);
+    if (!seller) return;
+
+    const saleDate = new Date(sale.date);
+    const month = saleDate.getMonth();
+    const year = saleDate.getFullYear();
+
+    for (const user of users) {
+      // Check if commission already exists for this user and sale
+      const existing = await Commission.findOne({ saleId: sale._id, sellerId: user._id });
+      if (existing) continue;
+
+      let shouldGetCommission = false;
+
+      if (user.role === 'admin') {
+        shouldGetCommission = true;
+      } else if (user.role === 'manager') {
+        // Manager gets commission for their own sales and all sellers
+        if (seller.role === 'seller' || seller._id.toString() === user._id.toString()) {
+          shouldGetCommission = true;
+        }
+      } else if (user.role === 'seller') {
+        // Seller gets commission for their own sales
+        if (seller._id.toString() === user._id.toString()) {
+          shouldGetCommission = true;
+        }
+      }
+
+      if (shouldGetCommission) {
+        const amount = (sale.totalUSD * user.commissionPercentage) / 100;
+        await Commission.create({
+          sellerId: user._id,
+          saleId: sale._id,
+          amount,
+          status: 'pendiente',
+          month,
+          year
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error calculating commissions:', error);
+  }
+}
+
 // Configure Nodemailer transporter
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -451,6 +502,11 @@ router.post('/sales', async (req, res) => {
       }
     }
     
+    // Calculate commissions if sale is paid
+    if (sale.status === 'paid') {
+      await calculateCommissions(sale);
+    }
+    
     res.status(201).json(sale);
   } catch (error: any) {
     console.error('Error creating sale:', error);
@@ -460,7 +516,14 @@ router.post('/sales', async (req, res) => {
 
 router.put('/sales/:id', async (req, res) => {
   try {
+    const originalSale = await Sale.findById(req.params.id);
     const sale = await Sale.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    
+    // Calculate commissions if sale became paid
+    if (sale && sale.status === 'paid' && (!originalSale || originalSale.status !== 'paid')) {
+      await calculateCommissions(sale);
+    }
+    
     res.json(sale);
   } catch (error: any) {
     console.error('Error updating sale:', error);
@@ -599,11 +662,67 @@ router.post('/commissions', async (req, res) => {
 
 router.put('/commissions/:id', async (req, res) => {
   try {
+    const originalCommission = await Commission.findById(req.params.id);
     const commission = await Commission.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    
+    // If status changed to pagada, create an expense
+    if (originalCommission && originalCommission.status === 'pendiente' && commission && commission.status === 'pagada') {
+      const seller = await User.findById(commission.sellerId);
+      const sale = await Sale.findById(commission.saleId);
+      
+      if (seller) {
+        const ref = sale ? sale._id.toString().substring(0, 8) : `${commission.month + 1}/${commission.year}`;
+        
+        // Get current exchange rate
+        const currentRate = await ExchangeRate.findOne().sort({ fechaActualizacion: -1 });
+        const rateValue = currentRate ? currentRate.promedio : 1;
+        
+        const expense = new Expense({
+          description: `Pago de Comisión - ${seller.name} - Ref: ${ref}`,
+          amountUSD: commission.amount,
+          amountVED: commission.amount * rateValue,
+          exchangeRate: rateValue,
+          category: 'payroll',
+          date: new Date()
+        });
+        await expense.save();
+      }
+    }
+    
     res.json(commission);
   } catch (error: any) {
     console.error('Error updating commission:', error);
     res.status(400).json({ error: error.message || 'Error updating commission' });
+  }
+});
+
+router.post('/commissions/regularize', async (req, res) => {
+  try {
+    const { month, year } = req.body;
+    if (month === undefined || year === undefined) {
+      return res.status(400).json({ error: 'Month and year are required' });
+    }
+
+    const startDate = new Date(year, month, 1);
+    const endDate = new Date(year, month + 1, 0, 23, 59, 59);
+
+    const sales = await Sale.find({
+      status: 'paid',
+      date: { $gte: startDate, $lte: endDate }
+    });
+
+    let count = 0;
+    for (const sale of sales) {
+      // Use the helper function to calculate commissions for this paid sale
+      // It already checks if commissions exist and handles all roles
+      await calculateCommissions(sale);
+      count++;
+    }
+
+    res.json({ success: true, message: `Regularized ${count} sales` });
+  } catch (error: any) {
+    console.error('Error regularizing commissions:', error);
+    res.status(500).json({ error: error.message || 'Error regularizing commissions' });
   }
 });
 
@@ -614,37 +733,23 @@ router.post('/commissions/process-cut', async (req, res) => {
       return res.status(400).json({ error: 'Month and year are required' });
     }
 
-    // Find all sales for this month/year
     const startDate = new Date(year, month, 1);
     const endDate = new Date(year, month + 1, 0, 23, 59, 59);
 
     const sales = await Sale.find({
-      date: { $gte: startDate.toISOString(), $lte: endDate.toISOString() }
+      status: 'paid',
+      date: { $gte: startDate, $lte: endDate }
     });
 
     let count = 0;
     for (const sale of sales) {
-      // Check if commission already exists for this sale
-      const existing = await Commission.findOne({ saleId: sale._id });
-      if (!existing) {
-        const seller = await User.findById(sale.sellerId);
-        if (seller && seller.commissionPercentage > 0) {
-          const amount = (sale.totalUSD * seller.commissionPercentage) / 100;
-          const commission = new Commission({
-            sellerId: seller._id,
-            saleId: sale._id,
-            amount,
-            status: 'pendiente',
-            month,
-            year
-          });
-          await commission.save();
-          count++;
-        }
-      }
+      // Use the helper function to calculate commissions for this paid sale
+      // It already checks if commissions exist and handles all roles
+      await calculateCommissions(sale);
+      count++;
     }
 
-    res.json({ success: true, count });
+    res.json({ success: true, count, message: `Se procesaron ${count} ventas para comisiones.` });
   } catch (error: any) {
     console.error('Error processing commissions cut:', error);
     res.status(500).json({ error: error.message || 'Error processing commissions cut' });

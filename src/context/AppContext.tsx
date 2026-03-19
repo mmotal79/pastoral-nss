@@ -151,6 +151,7 @@ interface AppContextType {
   addCommission: (commission: Partial<Commission>) => Promise<void>;
   updateCommission: (id: string, commission: Partial<Commission>) => Promise<void>;
   processCommissionsCut: (month: number, year: number) => Promise<void>;
+  regularizeCommissions: (month: number, year: number) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -713,21 +714,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (res.ok) {
         const updated = await res.json();
         setCommissions(prev => prev.map(c => c._id === id ? { ...updated, id: updated._id } : c));
-        
-        // If status changed to 'pagada', create an expense
-        if (commission.status === 'pagada') {
-          const seller = users.find(u => u._id === updated.sellerId);
-          const isToAdmin = seller?.role === 'admin';
-          const expenseData = {
-            description: isToAdmin ? 'Pago a Proveedor del Sistema' : `Pago de comisión a ${seller?.name}`,
-            amountUSD: updated.amount,
-            amountVED: 0,
-            exchangeRate: 1,
-            date: new Date().toISOString(),
-            category: 'Comisiones'
-          };
-          await addExpense(expenseData);
-        }
+        // Note: Backend already creates the expense when status changes to 'pagada'
       }
     } catch (error) {
       console.error('Error updating commission:', error);
@@ -754,11 +741,31 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const regularizeCommissions = async (month: number, year: number) => {
+    try {
+      const res = await fetch('/api/commissions/regularize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ month, year })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        alert(data.message);
+        fetchData();
+      } else {
+        const errorData = await res.json();
+        alert(`Error al regularizar comisiones: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error regularizing commissions:', error);
+    }
+  };
+
   return (
     <AppContext.Provider value={{ 
       currentUser, users, clients, products, sales, expenses, orders, commissions, settings, exchangeRate, loading, authLoading, isAdmin, isManager, isSeller,
       loginWithGoogle, logout, refreshData: fetchData, updateSettings, addUser, updateUser, deleteUser, sendWelcomeEmail, addProduct, updateProduct, addClient, updateClient, deleteClient, addSale, updateSale, deleteSale,
-      addExpense, updateExpense, deleteExpense, addOrder, updateOrder, deleteOrder, addCommission, updateCommission, processCommissionsCut
+      addExpense, updateExpense, deleteExpense, addOrder, updateOrder, deleteOrder, addCommission, updateCommission, processCommissionsCut, regularizeCommissions
     }}>
       {children}
     </AppContext.Provider>

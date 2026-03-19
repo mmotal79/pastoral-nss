@@ -238,26 +238,6 @@ export default function Sales() {
         status: newStatus
       });
 
-      // Generar comisión automáticamente si la venta está pagada
-      if (newStatus === 'paid' && paymentModalSale.sellerId) {
-        const existingCommission = commissions.find(c => c.saleId === paymentModalSale._id);
-        if (!existingCommission) {
-          const seller = users.find(u => u.id === paymentModalSale.sellerId || u._id === paymentModalSale.sellerId);
-          if (seller && seller.commissionPercentage && seller.commissionPercentage > 0) {
-            const commissionAmount = (paymentModalSale.totalUSD * seller.commissionPercentage) / 100;
-            const saleDate = new Date(paymentModalSale.date);
-            await addCommission({
-              sellerId: seller.id || seller._id,
-              saleId: paymentModalSale._id,
-              amount: commissionAmount,
-              status: 'pendiente',
-              month: saleDate.getMonth(),
-              year: saleDate.getFullYear()
-            });
-          }
-        }
-      }
-
       setPaymentModalSale(null);
       // Reset payment form
       setPaymentAmount('');

@@ -26,7 +26,7 @@ const parseDisplayDate = (dateString: string) => {
 };
 
 const SalesCommissions: React.FC = () => {
-  const { sales, users, commissions, updateCommission, processCommissionsCut, isAdmin, currentUser, exchangeRate } = useAppContext();
+  const { sales, users, commissions, updateCommission, processCommissionsCut, regularizeCommissions, isAdmin, currentUser, exchangeRate } = useAppContext();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [searchTerm, setSearchTerm] = useState('');
@@ -103,7 +103,17 @@ const SalesCommissions: React.FC = () => {
     <div className="space-y-6 pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col">
-          <h1 className="text-2xl font-bold text-gray-900">Comisiones de Ventas</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold text-gray-900">Comisiones de Ventas</h1>
+            {(isAdmin || isManager) && (
+              <button
+                onClick={() => regularizeCommissions(selectedMonth, selectedYear)}
+                className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Regularizar Comisiones
+              </button>
+            )}
+          </div>
           <p className="text-gray-500">Gestión de pagos y liquidaciones para vendedores</p>
           {exchangeRate && (
             <div className="flex flex-col text-sm text-indigo-600 font-semibold mt-1">
@@ -141,7 +151,7 @@ const SalesCommissions: React.FC = () => {
             </select>
           </div>
 
-          {isAdmin && (
+          {(isAdmin || isManager) && (
             <button
               onClick={handleProcessCut}
               className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
@@ -293,17 +303,19 @@ const SalesCommissions: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => handleToggleStatus(commission)}
-                          className={`p-2 rounded-lg transition-colors ${
-                            commission.status === 'pagada'
-                              ? 'text-amber-600 hover:bg-amber-50'
-                              : 'text-green-600 hover:bg-green-50'
-                          }`}
-                          title={commission.status === 'pagada' ? 'Marcar como pendiente' : 'Marcar como pagada'}
-                        >
-                          {commission.status === 'pagada' ? <Clock className="w-5 h-5" /> : <CheckCircle className="w-5 h-5" />}
-                        </button>
+                        {(isAdmin || (isManager && seller?.role !== 'admin')) && (
+                          <button
+                            onClick={() => handleToggleStatus(commission)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              commission.status === 'pagada'
+                                ? 'text-amber-600 hover:bg-amber-50'
+                                : 'text-green-600 hover:bg-green-50'
+                            }`}
+                            title={commission.status === 'pagada' ? 'Marcar como pendiente' : 'Marcar como pagada'}
+                          >
+                            {commission.status === 'pagada' ? <Clock className="w-5 h-5" /> : <CheckCircle className="w-5 h-5" />}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
