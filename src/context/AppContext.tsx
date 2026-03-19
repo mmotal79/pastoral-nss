@@ -730,7 +730,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       });
       if (res.ok) {
         const data = await res.json();
-        alert(`Corte procesado: ${data.count} comisiones generadas.`);
+        alert(data.message || 'Corte procesado correctamente.');
         fetchData();
       } else {
         const errorData = await res.json();

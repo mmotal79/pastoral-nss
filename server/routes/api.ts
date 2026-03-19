@@ -16,12 +16,17 @@ const router = express.Router();
 
 // Helper function to calculate commissions automatically
 async function calculateCommissions(sale: any) {
-  if (sale.status !== 'paid') return;
+  if (sale.status !== 'paid') return 0;
 
+  let createdCount = 0;
   try {
     const users = await User.find({ commissionPercentage: { $gt: 0 } });
     const seller = await User.findById(sale.sellerId);
-    if (!seller) return;
+    
+    if (!seller) {
+      console.log(`[Commissions] Sale ${sale._id} has no valid sellerId (${sale.sellerId}). Skipping.`);
+      return 0;
+    }
 
     const saleDate = new Date(sale.date);
     const month = saleDate.getMonth();
@@ -58,11 +63,14 @@ async function calculateCommissions(sale: any) {
           month,
           year
         });
+        createdCount++;
+        console.log(`[Commissions] Created commission for ${user.username} on sale ${sale._id} (Amount: ${amount})`);
       }
     }
   } catch (error) {
     console.error('Error calculating commissions:', error);
   }
+  return createdCount;
 }
 
 // Configure Nodemailer transporter
@@ -711,15 +719,22 @@ router.post('/commissions/regularize', async (req, res) => {
       date: { $gte: startDate, $lte: endDate }
     });
 
-    let count = 0;
+    let salesProcessed = 0;
+    let commissionsCreated = 0;
     for (const sale of sales) {
-      // Use the helper function to calculate commissions for this paid sale
-      // It already checks if commissions exist and handles all roles
-      await calculateCommissions(sale);
-      count++;
+      const created = await calculateCommissions(sale);
+      if (created > 0) {
+        commissionsCreated += created;
+      }
+      salesProcessed++;
     }
 
-    res.json({ success: true, message: `Regularized ${count} sales` });
+    res.json({ 
+      success: true, 
+      salesProcessed, 
+      commissionsCreated,
+      message: `Se regularizaron ${salesProcessed} ventas y se generaron ${commissionsCreated} comisiones nuevas.` 
+    });
   } catch (error: any) {
     console.error('Error regularizing commissions:', error);
     res.status(500).json({ error: error.message || 'Error regularizing commissions' });
@@ -741,15 +756,22 @@ router.post('/commissions/process-cut', async (req, res) => {
       date: { $gte: startDate, $lte: endDate }
     });
 
-    let count = 0;
+    let salesProcessed = 0;
+    let commissionsCreated = 0;
     for (const sale of sales) {
-      // Use the helper function to calculate commissions for this paid sale
-      // It already checks if commissions exist and handles all roles
-      await calculateCommissions(sale);
-      count++;
+      const created = await calculateCommissions(sale);
+      if (created > 0) {
+        commissionsCreated += created;
+      }
+      salesProcessed++;
     }
 
-    res.json({ success: true, count, message: `Se procesaron ${count} ventas para comisiones.` });
+    res.json({ 
+      success: true, 
+      salesProcessed, 
+      commissionsCreated,
+      message: `Corte procesado: ${salesProcessed} ventas analizadas, ${commissionsCreated} comisiones generadas.` 
+    });
   } catch (error: any) {
     console.error('Error processing commissions cut:', error);
     res.status(500).json({ error: error.message || 'Error processing commissions cut' });
