@@ -721,6 +721,52 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const addCommissionPayment = async (id: string, payment: any) => {
+    try {
+      const res = await fetch(`/api/commissions/${id}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payment, createdBy: currentUser?.id })
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setCommissions(prev => prev.map(c => c._id === id ? { ...updated, id: updated._id } : c));
+        fetchData(); // Refresh expenses too
+      }
+    } catch (error) {
+      console.error('Error adding commission payment:', error);
+    }
+  };
+
+  const deleteCommissionPayment = async (id: string, paymentId: string) => {
+    try {
+      const res = await fetch(`/api/commissions/${id}/payments/${paymentId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setCommissions(prev => prev.map(c => c._id === id ? { ...updated, id: updated._id } : c));
+        fetchData(); // Refresh expenses too
+      }
+    } catch (error) {
+      console.error('Error deleting commission payment:', error);
+    }
+  };
+
+  const validateCommissionPayment = async (id: string, paymentId: string) => {
+    try {
+      const res = await fetch(`/api/commissions/${id}/payments/${paymentId}/validate`, {
+        method: 'PATCH'
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setCommissions(prev => prev.map(c => c._id === id ? { ...updated, id: updated._id } : c));
+      }
+    } catch (error) {
+      console.error('Error validating commission payment:', error);
+    }
+  };
+
   const processCommissionsCut = async (month: number, year: number) => {
     try {
       const res = await fetch('/api/commissions/process-cut', {
@@ -765,7 +811,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     <AppContext.Provider value={{ 
       currentUser, users, clients, products, sales, expenses, orders, commissions, settings, exchangeRate, loading, authLoading, isAdmin, isManager, isSeller,
       loginWithGoogle, logout, refreshData: fetchData, updateSettings, addUser, updateUser, deleteUser, sendWelcomeEmail, addProduct, updateProduct, addClient, updateClient, deleteClient, addSale, updateSale, deleteSale,
-      addExpense, updateExpense, deleteExpense, addOrder, updateOrder, deleteOrder, addCommission, updateCommission, processCommissionsCut, regularizeCommissions
+      addExpense, updateExpense, deleteExpense, addOrder, updateOrder, deleteOrder, addCommission, updateCommission, 
+      addCommissionPayment, deleteCommissionPayment, validateCommissionPayment,
+      processCommissionsCut, regularizeCommissions
     }}>
       {children}
     </AppContext.Provider>

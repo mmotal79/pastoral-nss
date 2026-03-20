@@ -28,9 +28,9 @@ async function calculateCommissions(sale: any) {
       return 0;
     }
 
-    const saleDate = new Date(sale.date);
-    const month = saleDate.getMonth();
-    const year = saleDate.getFullYear();
+    const now = new Date();
+    const month = now.getMonth();
+    const year = now.getFullYear();
 
     for (const user of users) {
       // Check if commission already exists for this user and sale
@@ -64,7 +64,7 @@ async function calculateCommissions(sale: any) {
           year
         });
         createdCount++;
-        console.log(`[Commissions] Created commission for ${user.username} on sale ${sale._id} (Amount: ${amount})`);
+        console.log(`[Commissions] Created commission for ${user.name} on sale ${sale._id} (Amount: ${amount})`);
       }
     }
   } catch (error) {
@@ -668,35 +668,148 @@ router.post('/commissions', async (req, res) => {
   }
 });
 
+router.post('/commissions/:id/payments', async (req, res) => {
+  try {
+    const { amount, date, createdBy } = req.body;
+    const commission = await Commission.findById(req.params.id);
+    if (!commission) return res.status(404).json({ error: 'Commission not found' });
+
+    const receiver = await User.findById(commission.sellerId);
+    const creator = await User.findById(createdBy);
+    if (!receiver || !creator) return res.status(400).json({ error: 'Invalid user info' });
+
+    let paymentStatus = 'pagado';
+    if (creator.role === 'manager' && receiver.role === 'admin') {
+      paymentStatus = 'por verificar';
+    } else if (creator.role === 'admin') {
+      paymentStatus = 'pagado';
+    }
+
+    // Create expense
+    const currentRate = await ExchangeRate.findOne().sort({ fechaActualizacion: -1 });
+    const rateValue = currentRate ? currentRate.promedio : 1;
+    const sale = await Sale.findById(commission.saleId);
+    const ref = sale ? sale._id.toString().substring(0, 8) : `${commission.month + 1}/${commission.year}`;
+
+    const expense = new Expense({
+      description: `Pago de Comisión - ${receiver.name} - Ref: ${ref}`,
+      amountUSD: amount,
+      amountVED: amount * rateValue,
+      exchangeRate: rateValue,
+      category: 'payroll',
+      date: date || new Date()
+    });
+    await expense.save();
+
+    const payment = {
+      date: date || new Date(),
+      amount,
+      expenseId: expense._id,
+      status: paymentStatus,
+      createdBy
+    };
+
+    commission.payments.push(payment);
+
+    // Recalculate commission status
+    const totalPaid = commission.payments
+      .filter(p => p.status === 'pagado')
+      .reduce((sum, p) => sum + p.amount, 0);
+    
+    const hasPendingVerification = commission.payments.some(p => p.status === 'por verificar');
+
+    if (hasPendingVerification) {
+      commission.status = 'por verificar';
+    } else if (totalPaid >= commission.amount) {
+      commission.status = 'pagada';
+    } else {
+      commission.status = 'pendiente';
+    }
+
+    await commission.save();
+    res.json(commission);
+  } catch (error: any) {
+    console.error('Error adding commission payment:', error);
+    res.status(500).json({ error: error.message || 'Error adding commission payment' });
+  }
+});
+
+router.delete('/commissions/:id/payments/:paymentId', async (req, res) => {
+  try {
+    const commission = await Commission.findById(req.params.id);
+    if (!commission) return res.status(404).json({ error: 'Commission not found' });
+
+    const paymentIndex = commission.payments.findIndex(p => p._id.toString() === req.params.paymentId);
+    if (paymentIndex === -1) return res.status(404).json({ error: 'Payment not found' });
+
+    const payment = commission.payments[paymentIndex];
+    
+    // Cancel linked expense
+    if (payment.expenseId) {
+      await Expense.findByIdAndUpdate(payment.expenseId, { status: 'anulado' });
+    }
+
+    commission.payments.splice(paymentIndex, 1);
+
+    // Recalculate commission status
+    const totalPaid = commission.payments
+      .filter(p => p.status === 'pagado')
+      .reduce((sum, p) => sum + p.amount, 0);
+    
+    const hasPendingVerification = commission.payments.some(p => p.status === 'por verificar');
+
+    if (hasPendingVerification) {
+      commission.status = 'por verificar';
+    } else if (totalPaid >= commission.amount) {
+      commission.status = 'pagada';
+    } else {
+      commission.status = 'pendiente';
+    }
+
+    await commission.save();
+    res.json(commission);
+  } catch (error: any) {
+    console.error('Error deleting commission payment:', error);
+    res.status(500).json({ error: error.message || 'Error deleting commission payment' });
+  }
+});
+
+router.patch('/commissions/:id/payments/:paymentId/validate', async (req, res) => {
+  try {
+    const commission = await Commission.findById(req.params.id);
+    if (!commission) return res.status(404).json({ error: 'Commission not found' });
+
+    const payment = commission.payments.id(req.params.paymentId);
+    if (!payment) return res.status(404).json({ error: 'Payment not found' });
+
+    payment.status = 'pagado';
+
+    // Recalculate commission status
+    const totalPaid = commission.payments
+      .filter(p => p.status === 'pagado')
+      .reduce((sum, p) => sum + p.amount, 0);
+    
+    const hasPendingVerification = commission.payments.some(p => p.status === 'por verificar');
+
+    if (hasPendingVerification) {
+      commission.status = 'por verificar';
+    } else if (totalPaid >= commission.amount) {
+      commission.status = 'pagada';
+    } else {
+      commission.status = 'pendiente';
+    }
+
+    await commission.save();
+    res.json(commission);
+  } catch (error: any) {
+    console.error('Error validating commission payment:', error);
+    res.status(500).json({ error: error.message || 'Error validating commission payment' });
+  }
+});
+
 router.put('/commissions/:id', async (req, res) => {
   try {
-    const originalCommission = await Commission.findById(req.params.id);
     const commission = await Commission.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    
-    // If status changed to pagada, create an expense
-    if (originalCommission && originalCommission.status === 'pendiente' && commission && commission.status === 'pagada') {
-      const seller = await User.findById(commission.sellerId);
-      const sale = await Sale.findById(commission.saleId);
-      
-      if (seller) {
-        const ref = sale ? sale._id.toString().substring(0, 8) : `${commission.month + 1}/${commission.year}`;
-        
-        // Get current exchange rate
-        const currentRate = await ExchangeRate.findOne().sort({ fechaActualizacion: -1 });
-        const rateValue = currentRate ? currentRate.promedio : 1;
-        
-        const expense = new Expense({
-          description: `Pago de Comisión - ${seller.name} - Ref: ${ref}`,
-          amountUSD: commission.amount,
-          amountVED: commission.amount * rateValue,
-          exchangeRate: rateValue,
-          category: 'payroll',
-          date: new Date()
-        });
-        await expense.save();
-      }
-    }
-    
     res.json(commission);
   } catch (error: any) {
     console.error('Error updating commission:', error);

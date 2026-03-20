@@ -26,6 +26,7 @@ export default function Expenses() {
   const { expenses, addExpense, updateExpense, exchangeRate } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [showAnulled, setShowAnulled] = useState(false);
   const [formData, setFormData] = useState({
     description: '',
     amountUSD: '',
@@ -84,6 +85,8 @@ export default function Expenses() {
     'other': 'Otros'
   };
 
+  const filteredExpenses = expenses.filter(e => showAnulled || e.status !== 'anulado');
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -96,17 +99,28 @@ export default function Expenses() {
             </div>
           )}
         </div>
-        <button 
-          onClick={() => {
-            setEditingExpense(null);
-            setFormData({ description: '', amountUSD: '', date: format(new Date(), 'yyyy-MM-dd'), category: 'materials' });
-            setIsModalOpen(true);
-          }}
-          className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Registrar Gasto
-        </button>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center text-sm text-gray-600 cursor-pointer">
+            <input 
+              type="checkbox" 
+              checked={showAnulled} 
+              onChange={(e) => setShowAnulled(e.target.checked)}
+              className="mr-2 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            Mostrar anulados
+          </label>
+          <button 
+            onClick={() => {
+              setEditingExpense(null);
+              setFormData({ description: '', amountUSD: '', date: format(new Date(), 'yyyy-MM-dd'), category: 'materials' });
+              setIsModalOpen(true);
+            }}
+            className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Registrar Gasto
+          </button>
+        </div>
       </div>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingExpense ? "Editar Gasto" : "Registrar Gasto"}>
@@ -149,20 +163,33 @@ export default function Expenses() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripción</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estatus</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {expenses.map((expense) => (
-              <tr key={expense.id}>
+            {filteredExpenses.map((expense) => (
+              <tr key={expense.id} className={expense.status === 'anulado' ? 'bg-gray-50 opacity-60' : ''}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDisplayDate(expense.date, 'dd/MM/yyyy')}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{expense.description}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {expense.description}
+                  {expense.status === 'anulado' && <span className="ml-2 text-[10px] font-bold text-red-600 uppercase">Anulado</span>}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{categoryLabels[expense.category] || expense.category}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.amountUSD?.toFixed(2) || '0.00'}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <button onClick={() => openEditModal(expense)} className="text-blue-600 hover:text-blue-900" title="Editar Gasto">
-                    <Edit2 className="w-4 h-4" />
-                  </button>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                    expense.status === 'anulado' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                  }`}>
+                    {expense.status === 'anulado' ? 'Anulado' : 'Activo'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {expense.status !== 'anulado' && (
+                    <button onClick={() => openEditModal(expense)} className="text-blue-600 hover:text-blue-900" title="Editar Gasto">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
