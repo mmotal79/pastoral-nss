@@ -224,10 +224,9 @@ export default function Payroll() {
           }
         }
       }
-      alert('Regularización completada con éxito.');
+      // Success - no modal as requested
     } catch (error) {
       console.error('Error in regularization:', error);
-      alert('Ocurrió un error durante la regularización.');
     } finally {
       setIsRegularizing(false);
     }
@@ -283,11 +282,7 @@ export default function Payroll() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => {
-              if (window.confirm('¿Desea regularizar los pagos de todos los usuarios con salario periódico configurado?')) {
-                handleRegularize();
-              }
-            }}
+            onClick={() => handleRegularize()}
             disabled={isRegularizing}
             className="flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors font-medium border border-indigo-100 disabled:opacity-50"
           >
