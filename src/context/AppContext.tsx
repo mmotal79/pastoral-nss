@@ -110,7 +110,7 @@ export interface Payroll {
   _id?: string;
   id?: string;
   userId: string;
-  type: 'diario' | 'semanal';
+  type: 'diario' | 'semanal' | 'quincenal' | 'mensual' | 'anual';
   concept: string;
   amountUSD: number;
   date: string;

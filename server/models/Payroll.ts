@@ -10,7 +10,7 @@ const paymentSchema = new mongoose.Schema({
 
 const payrollSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  type: { type: String, enum: ['diario', 'semanal'], required: true },
+  type: { type: String, enum: ['diario', 'semanal', 'quincenal', 'mensual', 'anual'], required: true },
   concept: { type: String, required: true },
   amountUSD: { type: Number, required: true },
   date: { type: Date, required: true },

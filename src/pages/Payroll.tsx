@@ -21,7 +21,7 @@ import {
   RefreshCw,
   ShieldAlert
 } from 'lucide-react';
-import { format, parseISO, startOfWeek, endOfWeek, addDays, isSunday, isAfter, startOfDay, getYear, getMonth, getWeek } from 'date-fns';
+import { format, parseISO, startOfWeek, endOfWeek, addDays, isSunday, isAfter, startOfDay, getYear, getMonth, getWeek, lastDayOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 export default function Payroll() {
@@ -52,7 +52,7 @@ export default function Payroll() {
   // Form states
   const [formData, setFormData] = useState({
     userId: '',
-    type: 'diario' as 'diario' | 'semanal',
+    type: 'diario' as 'diario' | 'semanal' | 'quincenal' | 'mensual' | 'anual',
     concept: '',
     amountUSD: 0,
     date: format(new Date(), 'yyyy-MM-dd')
@@ -64,12 +64,6 @@ export default function Payroll() {
   });
 
   const [isRegularizing, setIsRegularizing] = useState(false);
-  const [regularizationData, setRegularizationData] = useState({
-    userId: '',
-    type: 'diario' as 'diario' | 'semanal',
-    startDate: format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'),
-    endDate: format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd')
-  });
 
   const filteredPayrolls = useMemo(() => {
     return payrolls.filter(p => {
@@ -97,34 +91,131 @@ export default function Payroll() {
   };
 
   const handleRegularize = async () => {
-    if (!regularizationData.userId) {
-      alert('Seleccione un usuario');
-      return;
-    }
-
-    const user = users.find(u => u._id === regularizationData.userId);
-    if (!user) return;
-
-    const salary = user.periodicSalary || (user.role === 'seller' ? 10 : 20);
-    // In a real app, we'd use user.baseSalary or similar. Let's assume some defaults for now.
-
-    const start = parseISO(regularizationData.startDate);
-    const end = parseISO(regularizationData.endDate);
+    setIsRegularizing(true);
+    const now = new Date();
+    const currentYear = getYear(now);
+    const currentMonth = getMonth(now);
     
-    if (regularizationData.type === 'diario') {
-      let current = start;
-      while (current <= end) {
-        if (!isSunday(current)) {
-          const dateStr = format(current, 'yyyy-MM-dd');
-          const dayName = format(current, 'EEEE', { locale: es });
-          const concept = `Sueldo Diario - ${dayName.charAt(0).toUpperCase() + dayName.slice(1)} ${dateStr}`;
+    try {
+      // Iterate over all users
+      for (const user of users) {
+        if (!user.periodicSalary || user.periodicSalary <= 0) continue;
+        
+        const frequency = user.salaryFrequency || 'mensual';
+        const salary = user.periodicSalary;
+        
+        if (frequency === 'diario') {
+          // Current week (Mon-Sat)
+          const start = startOfWeek(now, { weekStartsOn: 1 });
+          const end = endOfWeek(now, { weekStartsOn: 1 });
+          let current = start;
+          while (current <= end) {
+            if (!isSunday(current)) {
+              const dateStr = format(current, 'yyyy-MM-dd');
+              const dayName = format(current, 'EEEE', { locale: es });
+              const concept = `Sueldo Diario - ${dayName.charAt(0).toUpperCase() + dayName.slice(1)} ${dateStr}`;
+              
+              const exists = payrolls.find(p => p.userId === user._id && p.date === dateStr && p.type === 'diario');
+              if (!exists) {
+                await addPayroll({
+                  userId: user._id!,
+                  type: 'diario',
+                  concept,
+                  amountUSD: salary,
+                  date: dateStr,
+                  status: 'pendiente'
+                });
+              }
+            }
+            current = addDays(current, 1);
+          }
+        } else if (frequency === 'semanal') {
+          const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+          const dateStr = format(weekStart, 'yyyy-MM-dd');
+          const concept = `Sueldo Semanal - Semana ${getWeek(weekStart)} ${getYear(weekStart)}`;
           
-          // Check if already exists
-          const exists = payrolls.find(p => p.userId === user._id && p.date === dateStr && p.type === 'diario');
+          const exists = payrolls.find(p => {
+            const pDate = parseISO(p.date);
+            return p.userId === user._id && p.type === 'semanal' && getWeek(pDate) === getWeek(weekStart) && getYear(pDate) === getYear(weekStart);
+          });
+          
           if (!exists) {
             await addPayroll({
-              userId: user._id,
-              type: 'diario',
+              userId: user._id!,
+              type: 'semanal',
+              concept,
+              amountUSD: salary,
+              date: dateStr,
+              status: 'pendiente'
+            });
+          }
+        } else if (frequency === 'quincenal') {
+          // 1st Quincena (15th)
+          const date15 = format(new Date(currentYear, currentMonth, 15), 'yyyy-MM-dd');
+          const concept15 = `Sueldo Quincenal - 1ra Quincena ${format(now, 'MMMM', { locale: es })} ${currentYear}`;
+          
+          const exists15 = payrolls.find(p => p.userId === user._id && p.date === date15 && p.type === 'quincenal');
+          if (!exists15) {
+            await addPayroll({
+              userId: user._id!,
+              type: 'quincenal',
+              concept: concept15,
+              amountUSD: salary,
+              date: date15,
+              status: 'pendiente'
+            });
+          }
+          
+          // 2nd Quincena (30th or last day)
+          const lastDay = lastDayOfMonth(now);
+          const day30 = Math.min(30, lastDay.getDate());
+          const date30 = format(new Date(currentYear, currentMonth, day30), 'yyyy-MM-dd');
+          const concept30 = `Sueldo Quincenal - 2da Quincena ${format(now, 'MMMM', { locale: es })} ${currentYear}`;
+          
+          const exists30 = payrolls.find(p => p.userId === user._id && p.date === date30 && p.type === 'quincenal');
+          if (!exists30) {
+            await addPayroll({
+              userId: user._id!,
+              type: 'quincenal',
+              concept: concept30,
+              amountUSD: salary,
+              date: date30,
+              status: 'pendiente'
+            });
+          }
+        } else if (frequency === 'mensual') {
+          const lastDay = lastDayOfMonth(now);
+          const dateStr = format(lastDay, 'yyyy-MM-dd');
+          const concept = `Sueldo Mensual - ${format(now, 'MMMM', { locale: es })} ${currentYear}`;
+          
+          const exists = payrolls.find(p => {
+            const pDate = parseISO(p.date);
+            return p.userId === user._id && p.type === 'mensual' && getMonth(pDate) === currentMonth && getYear(pDate) === currentYear;
+          });
+          
+          if (!exists) {
+            await addPayroll({
+              userId: user._id!,
+              type: 'mensual',
+              concept,
+              amountUSD: salary,
+              date: dateStr,
+              status: 'pendiente'
+            });
+          }
+        } else if (frequency === 'anual') {
+          const dateStr = format(new Date(currentYear, 11, 31), 'yyyy-MM-dd');
+          const concept = `Sueldo Anual - ${currentYear}`;
+          
+          const exists = payrolls.find(p => {
+            const pDate = parseISO(p.date);
+            return p.userId === user._id && p.type === 'anual' && getYear(pDate) === currentYear;
+          });
+          
+          if (!exists) {
+            await addPayroll({
+              userId: user._id!,
+              type: 'anual',
               concept,
               amountUSD: salary,
               date: dateStr,
@@ -132,38 +223,14 @@ export default function Payroll() {
             });
           }
         }
-        current = addDays(current, 1);
       }
-    } else {
-      // Weekly logic
-      const weekStart = startOfWeek(start, { weekStartsOn: 1 });
-      const weekEnd = endOfWeek(start, { weekStartsOn: 1 });
-      const dateStr = format(weekStart, 'yyyy-MM-dd');
-      const concept = `Semana del Lunes ${format(weekStart, 'dd/MM/yyyy')} al Sábado ${format(addDays(weekEnd, -1), 'dd/MM/yyyy')}`;
-      
-      // Check if already exists in this calendar week
-      const weekNum = getWeek(weekStart);
-      const yearNum = getYear(weekStart);
-      
-      const exists = payrolls.find(p => {
-        const pDate = parseISO(p.date);
-        return p.userId === user._id && p.type === 'semanal' && getWeek(pDate) === weekNum && getYear(pDate) === yearNum;
-      });
-
-      if (!exists) {
-        await addPayroll({
-          userId: user._id,
-          type: 'semanal',
-          concept,
-          amountUSD: salary * 6, // 6 days
-          date: dateStr,
-          status: 'pendiente'
-        });
-      } else {
-        alert('Ya existe un registro semanal para este usuario en esta semana.');
-      }
+      alert('Regularización completada con éxito.');
+    } catch (error) {
+      console.error('Error in regularization:', error);
+      alert('Ocurrió un error durante la regularización.');
+    } finally {
+      setIsRegularizing(false);
     }
-    setIsRegularizing(false);
   };
 
   const handleAddPayment = async (e: React.FormEvent) => {
@@ -216,11 +283,16 @@ export default function Payroll() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setIsRegularizing(true)}
-            className="flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors font-medium border border-indigo-100"
+            onClick={() => {
+              if (window.confirm('¿Desea regularizar los pagos de todos los usuarios con salario periódico configurado?')) {
+                handleRegularize();
+              }
+            }}
+            disabled={isRegularizing}
+            className="flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors font-medium border border-indigo-100 disabled:opacity-50"
           >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Regularizar
+            <RefreshCw className={`w-4 h-4 mr-2 ${isRegularizing ? 'animate-spin' : ''}`} />
+            {isRegularizing ? 'Procesando...' : 'Regularizar'}
           </button>
           <button
             onClick={() => setIsAddModalOpen(true)}
@@ -511,6 +583,9 @@ export default function Payroll() {
                   >
                     <option value="diario">Diario</option>
                     <option value="semanal">Semanal</option>
+                    <option value="quincenal">Quincenal</option>
+                    <option value="mensual">Mensual</option>
+                    <option value="anual">Anual</option>
                   </select>
                 </div>
                 <div>
@@ -566,91 +641,6 @@ export default function Payroll() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Regularization Modal */}
-      {isRegularizing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-indigo-600 text-white">
-              <h3 className="text-lg font-bold">Regularización de Pagos</h3>
-              <button onClick={() => setIsRegularizing(false)} className="p-2 hover:bg-indigo-700 rounded-full transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 flex items-start">
-                <AlertCircle className="w-5 h-5 text-indigo-600 mr-3 flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-indigo-800 leading-relaxed">
-                  Esta herramienta creará automáticamente los registros de nómina pendientes para el periodo seleccionado, evitando duplicados.
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
-                <select
-                  required
-                  value={regularizationData.userId}
-                  onChange={(e) => setRegularizationData({ ...regularizationData, userId: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                  <option value="">Seleccione un usuario</option>
-                  {activeUsers.map(u => (
-                    <option key={u._id} value={u._id}>{u.name} ({u.role})</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Frecuencia</label>
-                <select
-                  value={regularizationData.type}
-                  onChange={(e) => setRegularizationData({ ...regularizationData, type: e.target.value as 'diario' | 'semanal' })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                  <option value="diario">Diario (Lunes a Sábado)</option>
-                  <option value="semanal">Semanal (Pago único por semana)</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
-                  <input
-                    type="date"
-                    required
-                    value={regularizationData.startDate}
-                    onChange={(e) => setRegularizationData({ ...regularizationData, startDate: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
-                  <input
-                    type="date"
-                    required
-                    value={regularizationData.endDate}
-                    onChange={(e) => setRegularizationData({ ...regularizationData, endDate: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-              </div>
-              <div className="pt-4 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsRegularizing(false)}
-                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleRegularize}
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm flex items-center justify-center"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Procesar
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}
