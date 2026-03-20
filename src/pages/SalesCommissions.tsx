@@ -350,7 +350,7 @@ const SalesCommissions: React.FC = () => {
                           {getStatusBadge(commission.status)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          {(isAdmin || (isManager && seller?.role !== 'admin')) && pendingAmount > 0 && (
+                          {(isAdmin || isManager) && pendingAmount > 0 && (
                             <button
                               onClick={() => setShowPaymentModal(commission._id)}
                               className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
