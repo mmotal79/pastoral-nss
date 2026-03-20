@@ -27,11 +27,12 @@ export default function Layout() {
     { to: '/expenses', icon: Receipt, label: 'Gastos' },
     { to: '/orders', icon: ClipboardList, label: 'Encargos' },
     { to: '/sales-commissions', icon: Receipt, label: 'Comisiones' },
+    { to: '/payroll', icon: Receipt, label: 'Nómina' },
     { to: '/users', icon: ShieldAlert, label: 'Usuarios' },
     { to: '/settings', icon: SettingsIcon, label: 'Configuración' },
   ].filter(item => {
     if (currentUser?.role === 'seller') {
-      return !['Dashboard', 'Gastos', 'Usuarios', 'Configuración'].includes(item.label);
+      return !['Dashboard', 'Gastos', 'Usuarios', 'Configuración', 'Nómina'].includes(item.label);
     }
     if (currentUser?.role === 'manager') {
       return !['Configuración'].includes(item.label);

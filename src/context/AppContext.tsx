@@ -106,6 +106,26 @@ export interface Commission {
   createdAt?: string;
 }
 
+export interface Payroll {
+  _id?: string;
+  id?: string;
+  userId: string;
+  type: 'diario' | 'semanal';
+  concept: string;
+  amountUSD: number;
+  date: string;
+  status: 'pendiente' | 'pagado' | 'parcial' | 'anulado';
+  payments: {
+    _id?: string;
+    id?: string;
+    date: string;
+    amountUSD: number;
+    status: 'pagado' | 'por verificar' | 'anulado';
+    createdBy: string;
+    expenseId?: string;
+  }[];
+}
+
 export interface ExchangeRate {
   promedio: number;
   fechaActualizacion: string;
@@ -120,6 +140,7 @@ interface AppContextType {
   expenses: Expense[];
   orders: Order[];
   commissions: Commission[];
+  payrolls: Payroll[];
   settings: Settings | null;
   exchangeRate: ExchangeRate | null;
   loading: boolean;
@@ -157,6 +178,13 @@ interface AppContextType {
   revertCommissionPayment: (id: string, paymentId: string) => Promise<void>;
   processCommissionsCut: (month: number, year: number) => Promise<void>;
   regularizeCommissions: (month: number, year: number) => Promise<void>;
+  addPayroll: (payroll: Partial<Payroll>) => Promise<void>;
+  updatePayroll: (id: string, payroll: Partial<Payroll>) => Promise<void>;
+  deletePayroll: (id: string) => Promise<void>;
+  addPayrollPayment: (id: string, payment: any) => Promise<void>;
+  deletePayrollPayment: (id: string, paymentId: string) => Promise<void>;
+  validatePayrollPayment: (id: string, paymentId: string) => Promise<void>;
+  revertPayrollPayment: (id: string, paymentId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -170,6 +198,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
+  const [payrolls, setPayrolls] = useState<Payroll[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [exchangeRate, setExchangeRate] = useState<ExchangeRate | null>(null);
   const [loading, setLoading] = useState(true);
@@ -261,13 +290,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [usersRes, clientsRes, salesRes, expensesRes, ordersRes, commissionsRes] = await Promise.all([
+      const [usersRes, clientsRes, salesRes, expensesRes, ordersRes, commissionsRes, payrollsRes] = await Promise.all([
         fetch('/api/users'),
         fetch('/api/clients'),
         fetch('/api/sales'),
         fetch('/api/expenses'),
         fetch('/api/orders'),
-        fetch('/api/commissions')
+        fetch('/api/commissions'),
+        fetch('/api/payrolls')
       ]);
 
       if (usersRes.ok) {
@@ -293,6 +323,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (commissionsRes.ok) {
         const data = await commissionsRes.json();
         setCommissions(data.map((d: any) => ({ ...d, id: d._id })));
+      }
+      if (payrollsRes.ok) {
+        const data = await payrollsRes.json();
+        setPayrolls(data.map((d: any) => ({ ...d, id: d._id })));
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -850,13 +884,153 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const addPayroll = async (payroll: Partial<Payroll>) => {
+    try {
+      const res = await fetch('/api/payrolls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payroll)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPayrolls(prev => [data, ...prev]);
+        alert('Registro de nómina creado.');
+      } else {
+        const errorData = await res.json();
+        alert(`Error al crear nómina: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error adding payroll:', error);
+    }
+  };
+
+  const updatePayroll = async (id: string, payroll: Partial<Payroll>) => {
+    try {
+      const res = await fetch(`/api/payrolls/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payroll)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPayrolls(prev => prev.map(p => p._id === id ? data : p));
+        alert('Nómina actualizada.');
+      } else {
+        const errorData = await res.json();
+        alert(`Error al actualizar nómina: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error updating payroll:', error);
+    }
+  };
+
+  const deletePayroll = async (id: string) => {
+    try {
+      const res = await fetch(`/api/payrolls/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setPayrolls(prev => prev.filter(p => p._id !== id));
+        alert('Nómina eliminada.');
+      } else {
+        const errorData = await res.json();
+        alert(`Error al eliminar nómina: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting payroll:', error);
+    }
+  };
+
+  const addPayrollPayment = async (id: string, payment: any) => {
+    try {
+      const res = await fetch(`/api/payrolls/${id}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payment, createdBy: currentUser?._id })
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setPayrolls(prev => prev.map(p => p._id === id ? updated : p));
+        alert('Pago de nómina registrado.');
+        fetchData();
+      } else {
+        const errorData = await res.json();
+        alert(`Error al registrar pago: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error adding payroll payment:', error);
+    }
+  };
+
+  const deletePayrollPayment = async (id: string, paymentId: string) => {
+    try {
+      const res = await fetch(`/api/payrolls/${id}/payments/${paymentId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setPayrolls(prev => prev.map(p => p._id === id ? updated : p));
+        alert('Pago de nómina anulado.');
+        fetchData();
+      } else {
+        const errorData = await res.json();
+        alert(`Error al anular pago: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting payroll payment:', error);
+    }
+  };
+
+  const validatePayrollPayment = async (id: string, paymentId: string) => {
+    try {
+      const res = await fetch(`/api/payrolls/${id}/payments/${paymentId}/validate`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser?._id })
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setPayrolls(prev => prev.map(p => p._id === id ? updated : p));
+        alert('Pago validado.');
+        fetchData();
+      } else {
+        const errorData = await res.json();
+        alert(`Error al validar pago: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error validating payroll payment:', error);
+    }
+  };
+
+  const revertPayrollPayment = async (id: string, paymentId: string) => {
+    try {
+      const res = await fetch(`/api/payrolls/${id}/payments/${paymentId}/revert`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser?._id })
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setPayrolls(prev => prev.map(p => p._id === id ? updated : p));
+        alert('Pago revertido.');
+        fetchData();
+      } else {
+        const errorData = await res.json();
+        alert(`Error al revertir pago: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error reverting payroll payment:', error);
+    }
+  };
+
   return (
     <AppContext.Provider value={{ 
-      currentUser, users, clients, products, sales, expenses, orders, commissions, settings, exchangeRate, loading, authLoading, isAdmin, isManager, isSeller,
+      currentUser, users, clients, products, sales, expenses, orders, commissions, payrolls, settings, exchangeRate, loading, authLoading, isAdmin, isManager, isSeller,
       loginWithGoogle, logout, refreshData: fetchData, updateSettings, addUser, updateUser, deleteUser, sendWelcomeEmail, addProduct, updateProduct, addClient, updateClient, deleteClient, addSale, updateSale, deleteSale,
       addExpense, updateExpense, deleteExpense, addOrder, updateOrder, deleteOrder, addCommission, updateCommission, 
       addCommissionPayment, deleteCommissionPayment, validateCommissionPayment, revertCommissionPayment,
-      processCommissionsCut, regularizeCommissions
+      processCommissionsCut, regularizeCommissions,
+      addPayroll, updatePayroll, deletePayroll, addPayrollPayment, deletePayrollPayment, validatePayrollPayment, revertPayrollPayment
     }}>
       {children}
     </AppContext.Provider>

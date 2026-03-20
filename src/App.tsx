@@ -11,6 +11,7 @@ import Login from './pages/Login';
 import Users from './pages/Users';
 import Settings from './pages/Settings';
 import SalesCommissions from './pages/SalesCommissions';
+import Payroll from './pages/Payroll';
 import { AppProvider, useAppContext } from './context/AppContext';
 
 function ProtectedRoutes() {
@@ -41,6 +42,9 @@ function ProtectedRoutes() {
         <Route path="expenses" element={<Expenses />} />
         <Route path="orders" element={<Orders />} />
         <Route path="sales-commissions" element={<SalesCommissions />} />
+        {(currentUser.role === 'admin' || currentUser.role === 'manager') && (
+          <Route path="payroll" element={<Payroll />} />
+        )}
         {currentUser.role === 'admin' && (
           <>
             <Route path="users" element={<Users />} />

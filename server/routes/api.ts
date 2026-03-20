@@ -10,6 +10,7 @@ import { User } from '../models/User.js';
 import { Settings } from '../models/Settings.js';
 import { Commission } from '../models/Commission.js';
 import { ExchangeRate } from '../models/ExchangeRate.js';
+import { Payroll } from '../models/Payroll.js';
 import cron from 'node-cron';
 
 const router = express.Router();
@@ -726,9 +727,12 @@ router.post('/commissions/:id/payments', async (req, res) => {
 
       // Category: 'services' for admin (Pago de servicios a Proveedor), 'payroll' for others (Nómina)
       const category = receiver.role === 'admin' ? 'services' : 'payroll';
+      const description = receiver.role === 'admin' 
+        ? `Pago de Licencia del Sistema - Ref: ${ref}` 
+        : `Pago de Comisión - ${receiver.name} - Ref: ${ref}`;
 
       const expense = new Expense({
-        description: `Pago de Comisión - ${receiver.name} - Ref: ${ref}`,
+        description: description,
         amountUSD: amount,
         amountVED: amount * rateValue,
         exchangeRate: rateValue,
@@ -1035,6 +1039,259 @@ router.post('/utils/shorten', async (req, res) => {
   } catch (error: any) {
     console.error('Error shortening URL:', error);
     res.status(500).json({ error: error.message || 'Error shortening URL' });
+  }
+});
+
+// Payroll Routes
+router.get('/payrolls', async (req, res) => {
+  try {
+    const payrolls = await Payroll.find().sort({ date: -1 });
+    res.json(payrolls);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/payrolls', async (req, res) => {
+  try {
+    const payroll = new Payroll(req.body);
+    await payroll.save();
+    res.status(201).json(payroll);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.put('/payrolls/:id', async (req, res) => {
+  try {
+    const payroll = await Payroll.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(payroll);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.delete('/payrolls/:id', async (req, res) => {
+  try {
+    const payroll = await Payroll.findById(req.params.id);
+    if (!payroll) return res.status(404).json({ error: 'Payroll not found' });
+    
+    // Annul instead of delete
+    payroll.status = 'anulado';
+    // Annul all payments
+    for (const payment of payroll.payments) {
+      payment.status = 'anulado';
+      if (payment.expenseId) {
+        await Expense.findByIdAndUpdate(payment.expenseId, { status: 'anulado' });
+      }
+    }
+    await payroll.save();
+    res.json({ message: 'Payroll annulled' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/payrolls/:id/payments', async (req, res) => {
+  try {
+    const { amountUSD, date, createdBy } = req.body;
+    const payroll = await Payroll.findById(req.params.id);
+    if (!payroll) return res.status(404).json({ error: 'Payroll not found' });
+
+    const receiver = await User.findById(payroll.userId);
+    const creator = await User.findById(createdBy);
+    if (!receiver || !creator) return res.status(400).json({ error: 'Invalid user info' });
+
+    let paymentStatus = 'pagado';
+    if (creator.role === 'manager' && receiver.role === 'admin') {
+      paymentStatus = 'por verificar';
+    }
+
+    let expenseId = null;
+    if (paymentStatus === 'pagado') {
+      const currentRate = await ExchangeRate.findOne().sort({ fechaActualizacion: -1 });
+      const rateValue = currentRate ? currentRate.promedio : 1;
+
+      const expense = new Expense({
+        description: `Pago de Nómina - ${receiver.name} - ${payroll.concept}`,
+        amountUSD: amountUSD,
+        amountVED: amountUSD * rateValue,
+        exchangeRate: rateValue,
+        category: 'payroll',
+        date: date || new Date()
+      });
+      await expense.save();
+      expenseId = expense._id;
+    }
+
+    payroll.payments.push({
+      date: date || new Date(),
+      amountUSD,
+      status: paymentStatus as any,
+      createdBy,
+      expenseId
+    });
+
+    // Update payroll status
+    const totalPaid = payroll.payments
+      .filter(p => p.status === 'pagado')
+      .reduce((sum, p) => sum + p.amountUSD, 0);
+    
+    const hasPendingVerification = payroll.payments.some(p => p.status === 'por verificar');
+
+    if (hasPendingVerification) {
+      payroll.status = 'por verificar' as any;
+    } else if (totalPaid >= payroll.amountUSD) {
+      payroll.status = 'pagado';
+    } else if (totalPaid > 0) {
+      payroll.status = 'parcial';
+    } else {
+      payroll.status = 'pendiente';
+    }
+
+    await payroll.save();
+    res.json(payroll);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/payrolls/:id/payments/:paymentId', async (req, res) => {
+  try {
+    const payroll = await Payroll.findById(req.params.id);
+    if (!payroll) return res.status(404).json({ error: 'Payroll not found' });
+
+    const payment = payroll.payments.id(req.params.paymentId);
+    if (!payment) return res.status(404).json({ error: 'Payment not found' });
+
+    payment.status = 'anulado';
+    if (payment.expenseId) {
+      await Expense.findByIdAndUpdate(payment.expenseId, { status: 'anulado' });
+    }
+
+    // Update payroll status
+    const totalPaid = payroll.payments
+      .filter(p => p.status === 'pagado')
+      .reduce((sum, p) => sum + p.amountUSD, 0);
+    
+    const hasPendingVerification = payroll.payments.some(p => p.status === 'por verificar');
+
+    if (hasPendingVerification) {
+      payroll.status = 'por verificar' as any;
+    } else if (totalPaid >= payroll.amountUSD) {
+      payroll.status = 'pagado';
+    } else if (totalPaid > 0) {
+      payroll.status = 'parcial';
+    } else {
+      payroll.status = 'pendiente';
+    }
+
+    await payroll.save();
+    res.json(payroll);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.patch('/payrolls/:id/payments/:paymentId/validate', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const user = await User.findById(userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: 'Solo los administradores pueden validar pagos.' });
+    }
+
+    const payroll = await Payroll.findById(req.params.id);
+    if (!payroll) return res.status(404).json({ error: 'Payroll not found' });
+
+    const payment = payroll.payments.id(req.params.paymentId);
+    if (!payment) return res.status(404).json({ error: 'Payment not found' });
+
+    payment.status = 'pagado';
+
+    // Create expense now that it's validated
+    const currentRate = await ExchangeRate.findOne().sort({ fechaActualizacion: -1 });
+    const rateValue = currentRate ? currentRate.promedio : 1;
+    const receiver = await User.findById(payroll.userId);
+
+    const expense = new Expense({
+      description: `Pago de Nómina - ${receiver?.name} - ${payroll.concept}`,
+      amountUSD: payment.amountUSD,
+      amountVED: payment.amountUSD * rateValue,
+      exchangeRate: rateValue,
+      category: 'payroll',
+      date: payment.date
+    });
+    await expense.save();
+    payment.expenseId = expense._id;
+
+    // Update payroll status
+    const totalPaid = payroll.payments
+      .filter(p => p.status === 'pagado')
+      .reduce((sum, p) => sum + p.amountUSD, 0);
+    
+    const hasPendingVerification = payroll.payments.some(p => p.status === 'por verificar');
+
+    if (hasPendingVerification) {
+      payroll.status = 'por verificar' as any;
+    } else if (totalPaid >= payroll.amountUSD) {
+      payroll.status = 'pagado';
+    } else if (totalPaid > 0) {
+      payroll.status = 'parcial';
+    } else {
+      payroll.status = 'pendiente';
+    }
+
+    await payroll.save();
+    res.json(payroll);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.patch('/payrolls/:id/payments/:paymentId/revert', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const user = await User.findById(userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: 'Solo los administradores pueden reversar pagos.' });
+    }
+
+    const payroll = await Payroll.findById(req.params.id);
+    if (!payroll) return res.status(404).json({ error: 'Payroll not found' });
+
+    const payment = payroll.payments.id(req.params.paymentId);
+    if (!payment) return res.status(404).json({ error: 'Payment not found' });
+
+    payment.status = 'por verificar';
+
+    // Annul linked expense
+    if (payment.expenseId) {
+      await Expense.findByIdAndUpdate(payment.expenseId, { status: 'anulado' });
+      payment.expenseId = undefined;
+    }
+
+    // Update payroll status
+    const totalPaid = payroll.payments
+      .filter(p => p.status === 'pagado')
+      .reduce((sum, p) => sum + p.amountUSD, 0);
+    
+    const hasPendingVerification = payroll.payments.some(p => p.status === 'por verificar');
+
+    if (hasPendingVerification) {
+      payroll.status = 'por verificar' as any;
+    } else if (totalPaid >= payroll.amountUSD) {
+      payroll.status = 'pagado';
+    } else if (totalPaid > 0) {
+      payroll.status = 'parcial';
+    } else {
+      payroll.status = 'pendiente';
+    }
+
+    await payroll.save();
+    res.json(payroll);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 

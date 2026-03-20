@@ -27,6 +27,7 @@ const getLocalDatetime = (dateString: string) => {
 
 export default function Sales() {
   const { sales, clients, products, addSale, updateSale, deleteSale, settings, exchangeRate, isAdmin, refreshData, currentUser, users, addCommission, commissions } = useAppContext();
+  const isSeller = currentUser?.role === 'seller';
   const [selectedTicket, setSelectedTicket] = useState<Sale | null>(null);
   const [paymentModalSale, setPaymentModalSale] = useState<Sale | null>(null);
   const ticketRef = useRef<HTMLDivElement>(null);
@@ -361,7 +362,34 @@ export default function Sales() {
           backgroundColor: '#ffffff',
           useCORS: true,
           allowTaint: true,
-          scrollY: -window.scrollY
+          scrollY: -window.scrollY,
+          onclone: (clonedDoc) => {
+            // Eliminar botones que no deben estar en la imagen (como el de borrar pago)
+            const buttons = clonedDoc.querySelectorAll('button');
+            buttons.forEach(btn => btn.remove());
+            
+            // Forzar estilos para evitar errores de oklch en html2canvas
+            const style = clonedDoc.createElement('style');
+            style.innerHTML = `
+              * {
+                border-color: #d1d5db !important;
+                outline-color: #d1d5db !important;
+              }
+              .text-red-500 { color: #ef4444 !important; }
+              .text-red-600 { color: #dc2626 !important; }
+              .text-green-600 { color: #16a34a !important; }
+              .text-indigo-600 { color: #4f46e5 !important; }
+              .text-gray-500 { color: #6b7280 !important; }
+              .text-gray-400 { color: #9ca3af !important; }
+              .text-gray-900 { color: #111827 !important; }
+              .bg-white { background-color: #ffffff !important; }
+              .bg-gray-50 { background-color: #f9fafb !important; }
+              .bg-green-50 { background-color: #f0fdf4 !important; }
+              .border-gray-100 { border-color: #f3f4f6 !important; }
+              .border-gray-200 { border-color: #e5e7eb !important; }
+            `;
+            clonedDoc.head.appendChild(style);
+          }
         });
         const imgData = canvas.toDataURL('image/png');
         
@@ -410,7 +438,34 @@ export default function Sales() {
             backgroundColor: '#ffffff',
             useCORS: true,
             allowTaint: true,
-            scrollY: -window.scrollY
+            scrollY: -window.scrollY,
+            onclone: (clonedDoc) => {
+              // Eliminar botones que no deben estar en la imagen (como el de borrar pago)
+              const buttons = clonedDoc.querySelectorAll('button');
+              buttons.forEach(btn => btn.remove());
+              
+              // Forzar estilos para evitar errores de oklch en html2canvas
+              const style = clonedDoc.createElement('style');
+              style.innerHTML = `
+                * {
+                  border-color: #d1d5db !important;
+                  outline-color: #d1d5db !important;
+                }
+                .text-red-500 { color: #ef4444 !important; }
+                .text-red-600 { color: #dc2626 !important; }
+                .text-green-600 { color: #16a34a !important; }
+                .text-indigo-600 { color: #4f46e5 !important; }
+                .text-gray-500 { color: #6b7280 !important; }
+                .text-gray-400 { color: #9ca3af !important; }
+                .text-gray-900 { color: #111827 !important; }
+                .bg-white { background-color: #ffffff !important; }
+                .bg-gray-50 { background-color: #f9fafb !important; }
+                .bg-green-50 { background-color: #f0fdf4 !important; }
+                .border-gray-100 { border-color: #f3f4f6 !important; }
+                .border-gray-200 { border-color: #e5e7eb !important; }
+              `;
+              clonedDoc.head.appendChild(style);
+            }
           });
           const imgData = canvas.toDataURL('image/png');
           
@@ -454,6 +509,11 @@ export default function Sales() {
   // Filtered Sales
   const filteredSales = useMemo(() => {
     return sales.filter(sale => {
+      // Role-based filtering: Sellers only see their own sales
+      if (isSeller && sale.sellerId !== (currentUser?.id || currentUser?._id)) {
+        return false;
+      }
+
       let match = true;
       if (dateFrom) {
         if (new Date(sale.date) < startOfDay(parseISO(dateFrom))) match = false;
@@ -469,7 +529,7 @@ export default function Sales() {
       }
       return match;
     });
-  }, [sales, dateFrom, dateTo, filterClient, filterStatus, filterProduct]);
+  }, [sales, dateFrom, dateTo, filterClient, filterStatus, filterProduct, isSeller, currentUser]);
 
   const stats = useMemo(() => {
     const allSales = (sales || []).filter(s => s.status !== 'anulado');
@@ -1123,7 +1183,8 @@ export default function Sales() {
                             {isAdmin && (
                               <button 
                                 onClick={() => handleDeletePayment(selectedTicket._id!, p.id)}
-                                className="text-red-500 hover:text-red-700"
+                                className="hover:opacity-70"
+                                style={{ color: '#ef4444' }}
                                 title="Eliminar Pago"
                               >
                                 <Trash2 className="w-3 h-3" />
