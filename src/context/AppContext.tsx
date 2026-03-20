@@ -770,7 +770,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const validateCommissionPayment = async (id: string, paymentId: string) => {
     try {
       const res = await fetch(`/api/commissions/${id}/payments/${paymentId}/validate`, {
-        method: 'PATCH'
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser?._id })
       });
       if (res.ok) {
         const updated = await res.json();
@@ -789,7 +791,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const revertCommissionPayment = async (id: string, paymentId: string) => {
     try {
       const res = await fetch(`/api/commissions/${id}/payments/${paymentId}/revert`, {
-        method: 'PATCH'
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser?._id })
       });
       if (res.ok) {
         const updated = await res.json();

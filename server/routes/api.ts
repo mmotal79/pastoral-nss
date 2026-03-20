@@ -685,26 +685,34 @@ router.post('/commissions/:id/payments', async (req, res) => {
       paymentStatus = 'pagado';
     }
 
-    // Create expense
-    const currentRate = await ExchangeRate.findOne().sort({ fechaActualizacion: -1 });
-    const rateValue = currentRate ? currentRate.promedio : 1;
-    const sale = await Sale.findById(commission.saleId);
-    const ref = sale ? sale._id.toString().substring(0, 8) : `${commission.month + 1}/${commission.year}`;
+    let expenseId = null;
+    
+    // Only create expense if status is 'pagado'
+    if (paymentStatus === 'pagado') {
+      const currentRate = await ExchangeRate.findOne().sort({ fechaActualizacion: -1 });
+      const rateValue = currentRate ? currentRate.promedio : 1;
+      const sale = await Sale.findById(commission.saleId);
+      const ref = sale ? sale._id.toString().substring(0, 8) : `${commission.month + 1}/${commission.year}`;
 
-    const expense = new Expense({
-      description: `Pago de Comisión - ${receiver.name} - Ref: ${ref}`,
-      amountUSD: amount,
-      amountVED: amount * rateValue,
-      exchangeRate: rateValue,
-      category: 'payroll',
-      date: date || new Date()
-    });
-    await expense.save();
+      // Category: 'services' for admin (Pago de servicios a Proveedor), 'payroll' for others (Nómina)
+      const category = receiver.role === 'admin' ? 'services' : 'payroll';
+
+      const expense = new Expense({
+        description: `Pago de Comisión - ${receiver.name} - Ref: ${ref}`,
+        amountUSD: amount,
+        amountVED: amount * rateValue,
+        exchangeRate: rateValue,
+        category: category,
+        date: date || new Date()
+      });
+      await expense.save();
+      expenseId = expense._id;
+    }
 
     const payment = {
       date: date || new Date(),
       amount,
-      expenseId: expense._id,
+      expenseId,
       status: paymentStatus,
       createdBy
     };
@@ -776,6 +784,12 @@ router.delete('/commissions/:id/payments/:paymentId', async (req, res) => {
 
 router.patch('/commissions/:id/payments/:paymentId/revert', async (req, res) => {
   try {
+    const { userId } = req.body;
+    const user = await User.findById(userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: 'Solo los administradores pueden reversar pagos.' });
+    }
+
     const commission = await Commission.findById(req.params.id);
     if (!commission) return res.status(404).json({ error: 'Commission not found' });
 
@@ -783,6 +797,11 @@ router.patch('/commissions/:id/payments/:paymentId/revert', async (req, res) => 
     if (!payment) return res.status(404).json({ error: 'Payment not found' });
 
     payment.status = 'por verificar';
+
+    // Annul linked expense if it exists
+    if (payment.expenseId) {
+      await Expense.findByIdAndUpdate(payment.expenseId, { status: 'anulado' });
+    }
 
     // Recalculate commission status
     const totalPaid = commission.payments
@@ -809,6 +828,12 @@ router.patch('/commissions/:id/payments/:paymentId/revert', async (req, res) => 
 
 router.patch('/commissions/:id/payments/:paymentId/validate', async (req, res) => {
   try {
+    const { userId } = req.body;
+    const user = await User.findById(userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: 'Solo los administradores pueden validar pagos.' });
+    }
+
     const commission = await Commission.findById(req.params.id);
     if (!commission) return res.status(404).json({ error: 'Commission not found' });
 
@@ -816,6 +841,31 @@ router.patch('/commissions/:id/payments/:paymentId/validate', async (req, res) =
     if (!payment) return res.status(404).json({ error: 'Payment not found' });
 
     payment.status = 'pagado';
+
+    // Create expense if not already created
+    if (!payment.expenseId) {
+      const receiver = await User.findById(commission.sellerId);
+      const currentRate = await ExchangeRate.findOne().sort({ fechaActualizacion: -1 });
+      const rateValue = currentRate ? currentRate.promedio : 1;
+      const sale = await Sale.findById(commission.saleId);
+      const ref = sale ? sale._id.toString().substring(0, 8) : `${commission.month + 1}/${commission.year}`;
+
+      const category = receiver?.role === 'admin' ? 'services' : 'payroll';
+
+      const expense = new Expense({
+        description: `Pago de Comisión - ${receiver?.name || 'Vendedor'} - Ref: ${ref}`,
+        amountUSD: payment.amount,
+        amountVED: payment.amount * rateValue,
+        exchangeRate: rateValue,
+        category: category,
+        date: new Date()
+      });
+      await expense.save();
+      payment.expenseId = expense._id;
+    } else {
+      // If expense exists but was annulled, reactivate it
+      await Expense.findByIdAndUpdate(payment.expenseId, { status: 'active' });
+    }
 
     // Recalculate commission status
     const totalPaid = commission.payments

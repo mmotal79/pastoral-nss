@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppContext, Expense } from '../context/AppContext';
-import { Plus, Edit2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, AlertCircle } from 'lucide-react';
 import Modal from '../components/Modal';
 import { format } from 'date-fns';
 
@@ -23,7 +23,7 @@ const getLocalDatetime = (dateString: string) => {
 };
 
 export default function Expenses() {
-  const { expenses, addExpense, updateExpense, exchangeRate } = useAppContext();
+  const { expenses, addExpense, updateExpense, exchangeRate, isAdmin } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [showAnulled, setShowAnulled] = useState(false);
@@ -65,6 +65,15 @@ export default function Expenses() {
     }
   };
 
+  const handleAnular = async (expense: Expense) => {
+    if (!window.confirm('¿Está seguro de anular este gasto? Esta acción no se puede deshacer.')) return;
+    try {
+      await updateExpense(expense._id!, { status: 'anulado' });
+    } catch (error) {
+      console.error('Error anular gasto:', error);
+    }
+  };
+
   const openEditModal = (expense: Expense) => {
     setEditingExpense(expense);
     setFormData({
@@ -79,7 +88,7 @@ export default function Expenses() {
   const categoryLabels: Record<string, string> = {
     'materials': 'Materiales',
     'equipment': 'Equipos',
-    'services': 'Servicios',
+    'services': 'Pago de servicios a Proveedor',
     'payroll': 'Nómina',
     'supplies': 'Insumos',
     'other': 'Otros'
@@ -143,7 +152,7 @@ export default function Expenses() {
               <option value="materials">Materiales</option>
               <option value="equipment">Equipos</option>
               <option value="supplies">Insumos</option>
-              <option value="services">Servicios</option>
+              <option value="services">Pago de servicios a Proveedor</option>
               <option value="payroll">Nómina</option>
               <option value="other">Otros</option>
             </select>
@@ -185,11 +194,18 @@ export default function Expenses() {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {expense.status !== 'anulado' && (
-                    <button onClick={() => openEditModal(expense)} className="text-blue-600 hover:text-blue-900" title="Editar Gasto">
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {expense.status !== 'anulado' && (
+                      <button onClick={() => openEditModal(expense)} className="text-blue-600 hover:text-blue-900" title="Editar Gasto">
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    {isAdmin && expense.status !== 'anulado' && (
+                      <button onClick={() => handleAnular(expense)} className="text-red-600 hover:text-red-900" title="Anular Gasto">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
