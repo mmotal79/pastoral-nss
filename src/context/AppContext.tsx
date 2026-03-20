@@ -51,6 +51,7 @@ export interface Payment {
   phoneSender?: string;
   changeUSD?: number;
   savedCreditUSD?: number;
+  status?: 'activo' | 'anulado';
 }
 
 export interface Sale {
@@ -60,7 +61,7 @@ export interface Sale {
   items: { productId: string; quantity: number; priceUSD: number; name: string }[];
   totalUSD: number;
   date: string;
-  status: 'paid' | 'pending' | 'partial';
+  status: 'paid' | 'pending' | 'partial' | 'anulado';
   sellerId?: string;
   payments: Payment[];
 }
@@ -99,7 +100,7 @@ export interface Commission {
   sellerId: string;
   saleId: string;
   amount: number;
-  status: 'pendiente' | 'pagada';
+  status: 'pendiente' | 'pagada' | 'por verificar' | 'anulada';
   month: number;
   year: number;
   createdAt?: string;

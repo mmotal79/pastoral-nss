@@ -11,7 +11,8 @@ const paymentSchema = new mongoose.Schema({
   reference: { type: String },
   phoneSender: { type: String },
   changeUSD: { type: Number, default: 0 },
-  savedCreditUSD: { type: Number, default: 0 }
+  savedCreditUSD: { type: Number, default: 0 },
+  status: { type: String, enum: ['activo', 'anulado'], default: 'activo' }
 });
 
 const saleSchema = new mongoose.Schema({
@@ -24,7 +25,7 @@ const saleSchema = new mongoose.Schema({
     priceUSD: { type: Number, required: true }
   }],
   totalUSD: { type: Number, required: true },
-  status: { type: String, enum: ['pending', 'paid', 'partial'], default: 'pending' },
+  status: { type: String, enum: ['pending', 'paid', 'partial', 'anulado'], default: 'pending' },
   sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   payments: [paymentSchema]
 }, { timestamps: true });

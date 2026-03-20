@@ -289,23 +289,23 @@ export default function Sales() {
   };
 
   const handleDeleteSale = async (id: string) => {
-    if (!window.confirm('¿Está seguro de eliminar esta venta? Esta acción no se puede deshacer.')) return;
+    if (!window.confirm('¿Está seguro de anular esta venta? Se anularán todos los pagos, comisiones y gastos asociados.')) return;
     try {
       await deleteSale(id);
     } catch (error) {
-      console.error('Error deleting sale:', error);
+      console.error('Error annulling sale:', error);
     }
   };
 
   const handleDeletePayment = async (saleId: string, paymentId: string) => {
-    if (!window.confirm('¿Estás seguro de eliminar este pago?')) return;
+    if (!window.confirm('¿Estás seguro de anular este pago?')) return;
     try {
       const sale = sales.find(s => s._id === saleId || s.id === saleId);
       if (!sale) return;
 
-      const updatedPayments = sale.payments.filter(p => p.id !== paymentId);
-      const newPaidTotal = updatedPayments.reduce((acc, p) => acc + p.amountUSD, 0);
-      const newStatus = newPaidTotal >= sale.totalUSD ? 'paid' : 'pending';
+      const updatedPayments = sale.payments.map(p => (p.id === paymentId || p._id === paymentId) ? { ...p, status: 'anulado' } : p);
+      const newPaidTotal = updatedPayments.filter(p => p.status !== 'anulado').reduce((acc, p) => acc + p.amountUSD, 0);
+      const newStatus = newPaidTotal >= sale.totalUSD ? 'paid' : (newPaidTotal > 0 ? 'partial' : 'pending');
 
       await updateSale(saleId, {
         payments: updatedPayments,
@@ -320,8 +320,9 @@ export default function Sales() {
           status: newStatus
         });
       }
+      alert('Pago anulado correctamente.');
     } catch (error) {
-      console.error('Error deleting payment:', error);
+      console.error('Error annulling payment:', error);
     }
   };
 
@@ -335,7 +336,7 @@ export default function Sales() {
   };
 
   const calculatePaid = (sale: Sale) => {
-    return sale.payments.reduce((acc, p) => acc + p.amountUSD, 0);
+    return sale.payments.filter(p => p.status !== 'anulado').reduce((acc, p) => acc + p.amountUSD, 0);
   };
 
   const handleWhatsAppReminder = (sale: Sale) => {
@@ -471,7 +472,7 @@ export default function Sales() {
   }, [sales, dateFrom, dateTo, filterClient, filterStatus, filterProduct]);
 
   const stats = useMemo(() => {
-    const allSales = sales || [];
+    const allSales = (sales || []).filter(s => s.status !== 'anulado');
     const totalSalesCount = allSales.length;
     const totalClientsCount = (clients || []).length;
     
@@ -480,7 +481,7 @@ export default function Sales() {
     
     allSales.forEach(sale => {
       totalAmount += sale.totalUSD;
-      totalPaid += sale.payments.reduce((acc, p) => acc + p.amountUSD, 0);
+      totalPaid += sale.payments.filter(p => p.status !== 'anulado').reduce((acc, p) => acc + p.amountUSD, 0);
     });
 
     return {
@@ -759,8 +760,12 @@ export default function Sales() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">${paid.toFixed(2)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-medium">${debt.toFixed(2)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${sale.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                      {sale.status === 'paid' ? 'Pagado' : 'Pendiente'}
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      sale.status === 'paid' ? 'bg-green-100 text-green-800' : 
+                      sale.status === 'anulado' ? 'bg-red-100 text-red-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {sale.status === 'paid' ? 'Pagado' : sale.status === 'anulado' ? 'Anulado' : 'Pendiente'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex items-center space-x-3" onClick={e => e.stopPropagation()}>

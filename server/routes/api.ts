@@ -542,17 +542,47 @@ router.put('/sales/:id', async (req, res) => {
 router.delete('/sales/:id', async (req, res) => {
   try {
     const sale = await Sale.findById(req.params.id);
-    if (sale && sale.items && sale.items.length > 0) {
-      // Restore product stock
+    if (!sale) return res.status(404).json({ error: 'Venta no encontrada' });
+
+    if (sale.status === 'anulado') {
+      return res.status(400).json({ error: 'La venta ya se encuentra anulada' });
+    }
+
+    // 1. Restore product stock
+    if (sale.items && sale.items.length > 0) {
       for (const item of sale.items) {
         await Product.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } });
       }
     }
-    await Sale.findByIdAndDelete(req.params.id);
-    res.json({ success: true });
+
+    // 2. Annul the sale and its payments
+    sale.status = 'anulado';
+    if (sale.payments) {
+      sale.payments.forEach((p: any) => {
+        p.status = 'anulado';
+      });
+    }
+    await sale.save();
+
+    // 3. Annul associated commissions and their payments/expenses
+    const commissions = await Commission.find({ saleId: sale._id });
+    for (const commission of commissions) {
+      commission.status = 'anulada';
+      if (commission.payments) {
+        for (const payment of commission.payments) {
+          payment.status = 'anulado';
+          if (payment.expenseId) {
+            await Expense.findByIdAndUpdate(payment.expenseId, { status: 'anulado' });
+          }
+        }
+      }
+      await commission.save();
+    }
+
+    res.json({ success: true, message: 'Venta y operaciones relacionadas anuladas correctamente' });
   } catch (error: any) {
-    console.error('Error deleting sale:', error);
-    res.status(400).json({ error: error.message || 'Error deleting sale' });
+    console.error('Error anulando venta:', error);
+    res.status(400).json({ error: error.message || 'Error al anular la venta' });
   }
 });
 

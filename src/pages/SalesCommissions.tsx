@@ -58,6 +58,7 @@ const SalesCommissions: React.FC = () => {
 
   const filteredCommissions = useMemo(() => {
     return commissions.filter(c => {
+      if (c.status === 'anulada') return false;
       // If seller, only see own commissions
       if (currentUser?.role === 'seller' && c.sellerId !== currentUser._id) return false;
 
@@ -97,7 +98,7 @@ const SalesCommissions: React.FC = () => {
     paidThisMonth = Math.round(paidThisMonth * 100) / 100;
 
     // Pending to collect (Net debt)
-    const totalGenerated = Math.round(commissions.reduce((sum, c) => sum + c.amount, 0) * 100) / 100;
+    const totalGenerated = Math.round(commissions.filter(c => c.status !== 'anulada').reduce((sum, c) => sum + c.amount, 0) * 100) / 100;
     const totalPaid = Math.round(commissions.reduce((sum, c) => {
       const paid = c.payments?.filter((p: any) => p.status === 'pagado').reduce((s: number, p: any) => s + p.amount, 0) || 0;
       return sum + paid;
@@ -139,6 +140,8 @@ const SalesCommissions: React.FC = () => {
         return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Pagada</span>;
       case 'por verificar':
         return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Por Verificar</span>;
+      case 'anulada':
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Anulada</span>;
       default:
         return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Pendiente</span>;
     }
@@ -353,10 +356,10 @@ const SalesCommissions: React.FC = () => {
                           {(isAdmin || isManager) && pendingAmount > 0 && (
                             <button
                               onClick={() => setShowPaymentModal(commission._id)}
-                              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                              title="Procesar Pago"
+                              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg transition-colors text-xs font-bold uppercase"
                             >
-                              <Plus className="w-5 h-5" />
+                              <Plus className="w-4 h-4" />
+                              Procesar Pago
                             </button>
                           )}
                         </td>

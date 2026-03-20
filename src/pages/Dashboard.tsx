@@ -22,6 +22,7 @@ export default function Dashboard() {
 
   const filteredSales = useMemo(() => {
     return sales.filter(sale => {
+      if (sale.status === 'anulado') return false;
       let match = true;
       const saleDate = parseDisplayDate(sale.date);
       if (dateFrom) {
@@ -36,6 +37,7 @@ export default function Dashboard() {
 
   const filteredExpenses = useMemo(() => {
     return expenses.filter(exp => {
+      if (exp.status === 'anulado') return false;
       let match = true;
       const expDate = parseDisplayDate(exp.date);
       if (dateFrom) {
