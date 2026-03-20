@@ -150,6 +150,10 @@ interface AppContextType {
   deleteOrder: (id: string) => Promise<void>;
   addCommission: (commission: Partial<Commission>) => Promise<void>;
   updateCommission: (id: string, commission: Partial<Commission>) => Promise<void>;
+  addCommissionPayment: (id: string, payment: any) => Promise<void>;
+  deleteCommissionPayment: (id: string, paymentId: string) => Promise<void>;
+  validateCommissionPayment: (id: string, paymentId: string) => Promise<void>;
+  revertCommissionPayment: (id: string, paymentId: string) => Promise<void>;
   processCommissionsCut: (month: number, year: number) => Promise<void>;
   regularizeCommissions: (month: number, year: number) => Promise<void>;
 }
@@ -726,15 +730,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const res = await fetch(`/api/commissions/${id}/payments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...payment, createdBy: currentUser?.id })
+        body: JSON.stringify({ ...payment, createdBy: currentUser?._id })
       });
       if (res.ok) {
         const updated = await res.json();
         setCommissions(prev => prev.map(c => c._id === id ? { ...updated, id: updated._id } : c));
+        alert('Pago registrado correctamente.');
         fetchData(); // Refresh expenses too
+      } else {
+        const errorData = await res.json();
+        alert(`Error al registrar pago: ${errorData.error}`);
       }
     } catch (error) {
       console.error('Error adding commission payment:', error);
+      alert('Error de red al registrar pago.');
     }
   };
 
@@ -746,10 +755,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (res.ok) {
         const updated = await res.json();
         setCommissions(prev => prev.map(c => c._id === id ? { ...updated, id: updated._id } : c));
+        alert('Pago anulado correctamente.');
         fetchData(); // Refresh expenses too
+      } else {
+        const errorData = await res.json();
+        alert(`Error al anular pago: ${errorData.error}`);
       }
     } catch (error) {
       console.error('Error deleting commission payment:', error);
+      alert('Error de red al anular pago.');
     }
   };
 
@@ -761,9 +775,33 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (res.ok) {
         const updated = await res.json();
         setCommissions(prev => prev.map(c => c._id === id ? { ...updated, id: updated._id } : c));
+        alert('Pago validado correctamente.');
+      } else {
+        const errorData = await res.json();
+        alert(`Error al validar pago: ${errorData.error}`);
       }
     } catch (error) {
       console.error('Error validating commission payment:', error);
+      alert('Error de red al validar pago.');
+    }
+  };
+
+  const revertCommissionPayment = async (id: string, paymentId: string) => {
+    try {
+      const res = await fetch(`/api/commissions/${id}/payments/${paymentId}/revert`, {
+        method: 'PATCH'
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setCommissions(prev => prev.map(c => c._id === id ? { ...updated, id: updated._id } : c));
+        alert('Pago revertido a "por verificar".');
+      } else {
+        const errorData = await res.json();
+        alert(`Error al revertir pago: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error reverting commission payment:', error);
+      alert('Error de red al revertir pago.');
     }
   };
 
@@ -812,7 +850,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       currentUser, users, clients, products, sales, expenses, orders, commissions, settings, exchangeRate, loading, authLoading, isAdmin, isManager, isSeller,
       loginWithGoogle, logout, refreshData: fetchData, updateSettings, addUser, updateUser, deleteUser, sendWelcomeEmail, addProduct, updateProduct, addClient, updateClient, deleteClient, addSale, updateSale, deleteSale,
       addExpense, updateExpense, deleteExpense, addOrder, updateOrder, deleteOrder, addCommission, updateCommission, 
-      addCommissionPayment, deleteCommissionPayment, validateCommissionPayment,
+      addCommissionPayment, deleteCommissionPayment, validateCommissionPayment, revertCommissionPayment,
       processCommissionsCut, regularizeCommissions
     }}>
       {children}

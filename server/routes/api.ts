@@ -774,6 +774,39 @@ router.delete('/commissions/:id/payments/:paymentId', async (req, res) => {
   }
 });
 
+router.patch('/commissions/:id/payments/:paymentId/revert', async (req, res) => {
+  try {
+    const commission = await Commission.findById(req.params.id);
+    if (!commission) return res.status(404).json({ error: 'Commission not found' });
+
+    const payment = commission.payments.id(req.params.paymentId);
+    if (!payment) return res.status(404).json({ error: 'Payment not found' });
+
+    payment.status = 'por verificar';
+
+    // Recalculate commission status
+    const totalPaid = commission.payments
+      .filter(p => p.status === 'pagado')
+      .reduce((sum, p) => sum + p.amount, 0);
+    
+    const hasPendingVerification = commission.payments.some(p => p.status === 'por verificar');
+
+    if (hasPendingVerification) {
+      commission.status = 'por verificar';
+    } else if (totalPaid >= commission.amount) {
+      commission.status = 'pagada';
+    } else {
+      commission.status = 'pendiente';
+    }
+
+    await commission.save();
+    res.json(commission);
+  } catch (error: any) {
+    console.error('Error reverting commission payment:', error);
+    res.status(500).json({ error: error.message || 'Error reverting commission payment' });
+  }
+});
+
 router.patch('/commissions/:id/payments/:paymentId/validate', async (req, res) => {
   try {
     const commission = await Commission.findById(req.params.id);

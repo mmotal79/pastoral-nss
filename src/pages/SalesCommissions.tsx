@@ -17,7 +17,8 @@ import {
   ShieldCheck,
   AlertCircle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  RotateCcw
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -35,7 +36,7 @@ const SalesCommissions: React.FC = () => {
   const { 
     sales, users, commissions, updateCommission, processCommissionsCut, regularizeCommissions, 
     isAdmin, isManager, currentUser, exchangeRate,
-    addCommissionPayment, deleteCommissionPayment, validateCommissionPayment
+    addCommissionPayment, deleteCommissionPayment, validateCommissionPayment, revertCommissionPayment
   } = useAppContext();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -367,46 +368,61 @@ const SalesCommissions: React.FC = () => {
                               <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Historial de Abonos</h4>
                               {commission.payments && commission.payments.length > 0 ? (
                                 <div className="space-y-2">
-                                  {commission.payments.map((payment: any, idx: number) => (
-                                    <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
-                                      <div className="flex items-center gap-4">
-                                        <div className="text-sm font-medium text-gray-900">${payment.amount.toFixed(2)}</div>
-                                        <div className="text-xs text-gray-500">{format(new Date(payment.date), 'dd/MM/yyyy')}</div>
-                                        <div className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                                          payment.status === 'pagado' ? 'bg-green-100 text-green-700' : 
-                                          payment.status === 'por verificar' ? 'bg-blue-100 text-blue-700' : 
-                                          'bg-red-100 text-red-700'
-                                        }`}>
-                                          {payment.status}
+                                  {commission.payments.map((payment: any, idx: number) => {
+                                    const creator = users.find(u => u._id === payment.createdBy);
+                                    return (
+                                      <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                                        <div className="flex items-center gap-4">
+                                          <div className="text-sm font-medium text-gray-900">${payment.amount.toFixed(2)}</div>
+                                          <div className="text-xs text-gray-500">{format(new Date(payment.date), 'dd/MM/yyyy')}</div>
+                                          <div className="text-[10px] text-gray-400 italic">Por: {creator?.name || 'Sistema'}</div>
+                                          <div className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                                            payment.status === 'pagado' ? 'bg-green-100 text-green-700' : 
+                                            payment.status === 'por verificar' ? 'bg-blue-100 text-blue-700' : 
+                                            'bg-red-100 text-red-700'
+                                          }`}>
+                                            {payment.status}
+                                          </div>
                                         </div>
-                                      </div>
                                       <div className="flex items-center gap-2">
                                         {isAdmin && payment.status === 'por verificar' && (
                                           <button 
                                             onClick={() => validateCommissionPayment(commission._id, payment._id)}
-                                            className="p-1 text-green-600 hover:bg-green-50 rounded"
+                                            className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg border border-green-200 transition-colors"
                                             title="Validar Pago"
                                           >
                                             <ShieldCheck className="w-4 h-4" />
                                           </button>
                                         )}
-                                        {isAdmin && (
+                                        {isAdmin && payment.status === 'pagado' && (
                                           <button 
-                                            onClick={() => {
-                                              if (window.confirm('¿Está seguro de anular este pago? El gasto asociado también se anulará.')) {
-                                                deleteCommissionPayment(commission._id, payment._id);
-                                              }
-                                            }}
-                                            className="p-1 text-red-600 hover:bg-red-50 rounded"
-                                            title="Anular Pago"
+                                            onClick={() => revertCommissionPayment(commission._id, payment._id)}
+                                            className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg border border-amber-200 transition-colors"
+                                            title="Reversar a Por Verificar"
                                           >
-                                            <Trash2 className="w-4 h-4" />
+                                            <RotateCcw className="w-4 h-4" />
                                           </button>
+                                        )}
+                                        {isAdmin && (
+                                          <>
+                                            <button 
+                                              onClick={() => {
+                                                if (window.confirm('¿Está seguro de anular este pago? El gasto asociado también se anulará.')) {
+                                                  deleteCommissionPayment(commission._id, payment._id);
+                                                }
+                                              }}
+                                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg border border-red-200 transition-colors"
+                                              title="Anular/Reversar Pago"
+                                            >
+                                              <Trash2 className="w-4 h-4" />
+                                            </button>
+                                          </>
                                         )}
                                       </div>
                                     </div>
-                                  ))}
-                                </div>
+                                  );
+                                })}
+                              </div>
                               ) : (
                                 <p className="text-sm text-gray-500 italic">No hay abonos registrados.</p>
                               )}
