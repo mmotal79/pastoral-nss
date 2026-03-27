@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useAppContext, Product } from '../context/AppContext';
-import { Plus, Image as ImageIcon, Edit2, PlusCircle, MinusCircle, Upload, Share2 } from 'lucide-react';
+import { Plus, Image as ImageIcon, Edit2, PlusCircle, MinusCircle, Upload, Share2, X } from 'lucide-react';
 import Modal from '../components/Modal';
 import { compressImage } from '../utils/imageUtils';
 
@@ -11,6 +11,7 @@ export default function Inventory() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedProductImage, setSelectedProductImage] = useState<Product | null>(null);
 
   const handleShareToSocial = async (product: Product) => {
     const corporatePhone = settings?.corporatePhone?.replace(/\D/g, '') || '';
@@ -308,7 +309,12 @@ export default function Inventory() {
               <tr key={product.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   {product.imageUrl ? (
-                    <img src={product.imageUrl} alt={product.name} className="h-10 w-10 rounded-md object-cover" />
+                    <img 
+                      src={product.imageUrl} 
+                      alt={product.name} 
+                      className="h-10 w-10 rounded-md object-cover cursor-pointer hover:opacity-80 transition-opacity" 
+                      onClick={() => setSelectedProductImage(product)}
+                    />
                   ) : (
                     <div className="h-10 w-10 rounded-md bg-gray-100 flex items-center justify-center">
                       <ImageIcon className="h-6 w-6 text-gray-400" />
@@ -353,6 +359,52 @@ export default function Inventory() {
           </tbody>
         </table>
       </div>
+
+      {/* Modal de Imagen Ampliada */}
+      {selectedProductImage && (
+        <div 
+          className="fixed inset-0 bg-black/95 z-[60] flex flex-col items-center justify-between p-6 sm:p-12"
+          onClick={() => setSelectedProductImage(null)}
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Escape' && setSelectedProductImage(null)}
+          autoFocus
+        >
+          <button 
+            onClick={() => setSelectedProductImage(null)}
+            className="absolute top-6 right-6 text-white/70 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-full z-[70]"
+          >
+            <X className="w-8 h-8" />
+          </button>
+          
+          <div 
+            className="flex-1 w-full flex items-center justify-center min-h-0"
+            onClick={e => e.stopPropagation()}
+          >
+            <img 
+              src={selectedProductImage.imageUrl} 
+              alt={selectedProductImage.name} 
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            />
+          </div>
+          
+          <div 
+            className="mt-8 w-full max-w-lg bg-white/5 backdrop-blur-xl p-6 rounded-2xl border border-white/10 text-center text-white shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <h2 className="text-2xl font-bold mb-4 tracking-tight">{selectedProductImage.name}</h2>
+            <div className="grid grid-cols-2 gap-4 divide-x divide-white/10">
+              <div className="flex flex-col items-center">
+                <p className="text-white/50 text-xs uppercase font-bold tracking-widest mb-1">Precio</p>
+                <p className="text-2xl font-light text-indigo-400">${selectedProductImage.priceUSD.toFixed(2)}</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <p className="text-white/50 text-xs uppercase font-bold tracking-widest mb-1">Disponibilidad</p>
+                <p className="text-2xl font-light text-green-400">{selectedProductImage.stock} <span className="text-sm">unid.</span></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

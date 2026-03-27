@@ -1,10 +1,11 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useAppContext, Sale, Client } from '../context/AppContext';
 import { Plus, MessageCircle, Receipt, DollarSign, Download, X, Search, Filter, Users, ShoppingBag, Clock, TrendingUp, Edit2, Trash2 } from 'lucide-react';
-import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { format, parseISO, startOfDay, endOfDay, startOfMonth, endOfMonth, isSameMonth, isBefore, addMonths, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import html2canvas from 'html2canvas';
 import Modal from '../components/Modal';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const formatDisplayDate = (dateString: string, formatStr: string, options?: any) => {
   if (!dateString) return '';
@@ -141,6 +142,51 @@ export default function Sales() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterProduct, setFilterProduct] = useState('');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Applied Filters (for Dashboard and Table synchronization)
+  const [appliedFilters, setAppliedFilters] = useState({
+    dateFrom: '',
+    dateTo: '',
+    filterClient: '',
+    filterStatus: '',
+    filterProduct: ''
+  });
+
+  // Month Selector state
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+
+  const handleApplyFilters = () => {
+    setAppliedFilters({
+      dateFrom,
+      dateTo,
+      filterClient,
+      filterStatus,
+      filterProduct
+    });
+    setIsFilterOpen(false);
+  };
+
+  const handleClearFilters = () => {
+    setDateFrom('');
+    setDateTo('');
+    setFilterClient('');
+    setFilterStatus('');
+    setFilterProduct('');
+    setAppliedFilters({
+      dateFrom: '',
+      dateTo: '',
+      filterClient: '',
+      filterStatus: '',
+      filterProduct: ''
+    });
+    setIsFilterOpen(false);
+  };
+
+  const handleMonthChange = (direction: 'prev' | 'next') => {
+    const current = parseISO(selectedMonth + '-01');
+    const next = direction === 'next' ? addMonths(current, 1) : subMonths(current, 1);
+    setSelectedMonth(format(next, 'yyyy-MM'));
+  };
 
   // Payment modal state
   const [paymentMethod, setPaymentMethod] = useState('cash_usd');
@@ -508,33 +554,52 @@ export default function Sales() {
 
   // Filtered Sales
   const filteredSales = useMemo(() => {
+    const filtersActive = appliedFilters.dateFrom || appliedFilters.dateTo || appliedFilters.filterClient || appliedFilters.filterStatus || appliedFilters.filterProduct;
+
     return sales.filter(sale => {
       // Role-based filtering: Sellers only see their own sales
       if (isSeller && sale.sellerId !== (currentUser?.id || currentUser?._id)) {
         return false;
       }
 
-      let match = true;
-      if (dateFrom) {
-        if (new Date(sale.date) < startOfDay(parseISO(dateFrom))) match = false;
+      if (filtersActive) {
+        let match = true;
+        if (appliedFilters.dateFrom) {
+          if (new Date(sale.date) < startOfDay(parseISO(appliedFilters.dateFrom))) match = false;
+        }
+        if (appliedFilters.dateTo) {
+          if (new Date(sale.date) > endOfDay(parseISO(appliedFilters.dateTo))) match = false;
+        }
+        if (appliedFilters.filterClient && sale.clientId !== appliedFilters.filterClient) match = false;
+        if (appliedFilters.filterStatus && sale.status !== appliedFilters.filterStatus) match = false;
+        if (appliedFilters.filterProduct) {
+          const hasProduct = sale.items.some(item => item.name.toLowerCase().includes(appliedFilters.filterProduct.toLowerCase()));
+          if (!hasProduct) match = false;
+        }
+        return match;
+      } else {
+        // Carry-over logic when no filters are applied
+        const saleDate = new Date(sale.date);
+        const monthStart = startOfMonth(parseISO(selectedMonth + '-01'));
+        const monthEnd = endOfMonth(monthStart);
+
+        // 1. Sales of the selected month
+        const isCurrentMonth = isSameMonth(saleDate, monthStart);
+        
+        // 2. Sales of previous months with pending balance
+        const isPreviousMonth = isBefore(saleDate, monthStart);
+        const totalPaid = sale.payments.filter(p => p.status !== 'anulado').reduce((acc, p) => acc + p.amountUSD, 0);
+        const hasPendingBalance = (sale.totalUSD - totalPaid) > 0.01;
+
+        return isCurrentMonth || (isPreviousMonth && hasPendingBalance);
       }
-      if (dateTo) {
-        if (new Date(sale.date) > endOfDay(parseISO(dateTo))) match = false;
-      }
-      if (filterClient && sale.clientId !== filterClient) match = false;
-      if (filterStatus && sale.status !== filterStatus) match = false;
-      if (filterProduct) {
-        const hasProduct = sale.items.some(item => item.name.toLowerCase().includes(filterProduct.toLowerCase()));
-        if (!hasProduct) match = false;
-      }
-      return match;
     });
-  }, [sales, dateFrom, dateTo, filterClient, filterStatus, filterProduct, isSeller, currentUser]);
+  }, [sales, appliedFilters, selectedMonth, isSeller, currentUser]);
 
   const stats = useMemo(() => {
-    const allSales = (sales || []).filter(s => s.status !== 'anulado');
+    const allSales = filteredSales.filter(s => s.status !== 'anulado');
     const totalSalesCount = allSales.length;
-    const totalClientsCount = (clients || []).length;
+    const totalClientsCount = new Set(allSales.map(s => s.clientId)).size;
     
     let totalPaid = 0;
     let totalAmount = 0;
@@ -551,13 +616,30 @@ export default function Sales() {
       totalPaid,
       totalPending: Math.max(0, totalAmount - totalPaid)
     };
-  }, [sales, clients]);
+  }, [filteredSales]);
 
   return (
     <div className="space-y-6 relative">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col">
           <h1 className="text-2xl font-bold text-gray-900">Ventas y Cuentas por Cobrar</h1>
+          <div className="flex items-center space-x-2 mt-1">
+            <button 
+              onClick={() => handleMonthChange('prev')}
+              className="p-1 hover:bg-gray-100 rounded-full text-gray-600"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <span className="text-sm font-semibold text-indigo-600 capitalize">
+              {format(parseISO(selectedMonth + '-01'), 'MMMM yyyy', { locale: es })}
+            </span>
+            <button 
+              onClick={() => handleMonthChange('next')}
+              className="p-1 hover:bg-gray-100 rounded-full text-gray-600"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
           {exchangeRate && (
             <div className="flex flex-col text-sm text-indigo-600 font-semibold">
               <div className="flex items-center space-x-2">
@@ -735,53 +817,81 @@ export default function Sales() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Desde</label>
-                  <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border" />
+                  <input 
+                    type="date" 
+                    value={dateFrom} 
+                    onChange={(e) => setDateFrom(e.target.value)} 
+                    onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
+                    className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border" 
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Hasta</label>
-                  <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border" />
+                  <input 
+                    type="date" 
+                    value={dateTo} 
+                    onChange={(e) => setDateTo(e.target.value)} 
+                    onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
+                    className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border" 
+                  />
                 </div>
               </div>
               
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Cliente</label>
-                <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)} className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border">
+                <select 
+                  value={filterClient} 
+                  onChange={(e) => setFilterClient(e.target.value)} 
+                  onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
+                  className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border"
+                >
                   <option value="">Todos los clientes</option>
                   {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
-              
+
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Estado</label>
-                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border">
-                  <option value="">Todos</option>
-                  <option value="paid">Pagados</option>
-                  <option value="pending">Cuentas por Cobrar</option>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Estatus</label>
+                <select 
+                  value={filterStatus} 
+                  onChange={(e) => setFilterStatus(e.target.value)} 
+                  onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
+                  className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border"
+                >
+                  <option value="">Todos los estatus</option>
+                  <option value="pagado">Pagado</option>
+                  <option value="pendiente">Pendiente</option>
+                  <option value="anulado">Anulado</option>
                 </select>
               </div>
-              
+
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Producto (Nombre)</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Producto</label>
                 <div className="relative">
-                  <input type="text" value={filterProduct} onChange={(e) => setFilterProduct(e.target.value)} placeholder="Buscar..." className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border pl-8" />
-                  <Search className="w-4 h-4 text-gray-400 absolute left-2 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder="Buscar por producto..."
+                    value={filterProduct}
+                    onChange={(e) => setFilterProduct(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
+                    className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border pl-8"
+                  />
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
                 </div>
               </div>
 
-              <div className="pt-3 mt-2 border-t border-gray-100 flex justify-end space-x-2">
-                <button 
-                  onClick={() => {
-                    setDateFrom(''); setDateTo(''); setFilterClient(''); setFilterStatus(''); setFilterProduct('');
-                  }}
-                  className="px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+              <div className="flex space-x-2 pt-2">
+                <button
+                  onClick={handleClearFilters}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Limpiar
                 </button>
-                <button 
-                  onClick={() => setIsFilterOpen(false)}
-                  className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 shadow-sm transition-colors"
+                <button
+                  onClick={handleApplyFilters}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
                 >
-                  Procesar
+                  Aplicar
                 </button>
               </div>
             </div>
