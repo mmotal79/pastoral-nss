@@ -570,7 +570,10 @@ export default function Sales() {
         if (appliedFilters.dateTo) {
           if (new Date(sale.date) > endOfDay(parseISO(appliedFilters.dateTo))) match = false;
         }
-        if (appliedFilters.filterClient && sale.clientId !== appliedFilters.filterClient) match = false;
+        if (appliedFilters.filterClient) {
+          const saleClientId = typeof sale.clientId === 'string' ? sale.clientId : (sale.clientId?._id || sale.clientId?.id);
+          if (saleClientId !== appliedFilters.filterClient) match = false;
+        }
         if (appliedFilters.filterStatus && sale.status !== appliedFilters.filterStatus) match = false;
         if (appliedFilters.filterProduct) {
           const hasProduct = sale.items.some(item => item.name.toLowerCase().includes(appliedFilters.filterProduct.toLowerCase()));
@@ -859,8 +862,9 @@ export default function Sales() {
                   className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border"
                 >
                   <option value="">Todos los estatus</option>
-                  <option value="pagado">Pagado</option>
-                  <option value="pendiente">Pendiente</option>
+                  <option value="paid">Pagado</option>
+                  <option value="pending">Pendiente</option>
+                  <option value="partial">Parcial</option>
                   <option value="anulado">Anulado</option>
                 </select>
               </div>

@@ -217,14 +217,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           fetch('/api/products'),
           fetch('/api/exchange-rate')
         ]);
-        if (settingsRes.ok) {
+        if (settingsRes.ok && settingsRes.headers.get('content-type')?.includes('application/json')) {
           setSettings(await settingsRes.json());
         }
-        if (productsRes.ok) {
+        if (productsRes.ok && productsRes.headers.get('content-type')?.includes('application/json')) {
           const data = await productsRes.json();
           setProducts(data.map((d: any) => ({ ...d, id: d._id })));
         }
-        if (exchangeRateRes.ok) {
+        if (exchangeRateRes.ok && exchangeRateRes.headers.get('content-type')?.includes('application/json')) {
           setExchangeRate(await exchangeRateRes.json());
         }
       } catch (error) {
