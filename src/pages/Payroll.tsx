@@ -644,21 +644,38 @@ export default function Payroll() {
       {isPaymentModalOpen && selectedPayroll && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-green-600 text-white">
-              <h3 className="text-lg font-bold text-white">Registrar Pago de Nómina</h3>
-              <button onClick={() => setIsPaymentModalOpen(false)} className="p-2 hover:bg-green-700 rounded-full transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleAddPayment} className="p-6 space-y-4">
-              <div className="bg-green-50 p-4 rounded-lg border border-green-100">
-                <p className="text-xs text-green-800 font-medium mb-1">Concepto:</p>
-                <p className="text-sm text-green-900 font-bold">{selectedPayroll.concept}</p>
-                <div className="mt-2 flex justify-between items-center">
-                  <span className="text-xs text-green-700">Total: ${selectedPayroll.amountUSD.toFixed(2)}</span>
-                  <span className="text-xs font-bold text-red-600">Pendiente: ${calculatePending(selectedPayroll).toFixed(2)}</span>
+            <div className="bg-green-600 p-6 text-white">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-xl font-bold">Registrar Pago de Nómina</h3>
+                  <p className="text-green-100 text-sm flex items-center mt-1">
+                    <UserIcon className="w-4 h-4 mr-1" />
+                    {users.find(u => u._id === selectedPayroll.userId || u.id === selectedPayroll.userId)?.name || 'Usuario'}
+                  </p>
+                </div>
+                <button onClick={() => setIsPaymentModalOpen(false)} className="text-green-100 hover:text-white transition-colors">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/20">
+                <div>
+                  <p className="text-green-100 text-[10px] uppercase font-bold tracking-wider mb-1">Pendiente (USD)</p>
+                  <p className="text-2xl font-black">${calculatePending(selectedPayroll).toFixed(2)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-green-100 text-[10px] uppercase font-bold tracking-wider mb-1">Pendiente (Bs.)</p>
+                  <p className="text-2xl font-black">
+                    {(calculatePending(selectedPayroll) * (exchangeRate?.promedio || 0)).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="col-span-2 pt-2 border-t border-white/10 flex justify-between items-center text-[10px] text-green-100/80 italic">
+                  <span>Concepto: {selectedPayroll.concept}</span>
+                  <span>Tasa: {(exchangeRate?.promedio || 0).toFixed(2)} Bs/$</span>
                 </div>
               </div>
+            </div>
+            <form onSubmit={handleAddPayment} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Monto a Pagar (USD)</label>
                 <div className="relative">

@@ -18,7 +18,8 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
-  RotateCcw
+  RotateCcw,
+  X
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -448,46 +449,88 @@ const SalesCommissions: React.FC = () => {
         </div>
       </div>
       {/* Payment Modal */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Procesar Pago</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Monto (USD)</label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                    placeholder="0.00"
-                  />
+      {showPaymentModal && (() => {
+        const commission = commissions.find(c => c._id === showPaymentModal || c.id === showPaymentModal);
+        const seller = users.find(u => u._id === commission?.sellerId || u.id === commission?.sellerId);
+        const pending = commission ? commission.amountUSD - (commission.payments?.filter(p => p.status !== 'anulado').reduce((acc, p) => acc + p.amountUSD, 0) || 0) : 0;
+        
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+              <div className="bg-indigo-600 p-6 text-white">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold">Procesar Pago de Comisión</h3>
+                    <p className="text-indigo-100 text-sm flex items-center mt-1">
+                      <UserIcon className="w-4 h-4 mr-1" />
+                      {seller?.name || 'Vendedor'}
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setShowPaymentModal(null);
+                      setPaymentAmount('');
+                    }} 
+                    className="text-indigo-100 hover:text-white transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/20">
+                  <div>
+                    <p className="text-indigo-100 text-[10px] uppercase font-bold tracking-wider mb-1">Pendiente (USD)</p>
+                    <p className="text-2xl font-black">${pending.toFixed(2)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-indigo-100 text-[10px] uppercase font-bold tracking-wider mb-1">Pendiente (Bs.)</p>
+                    <p className="text-2xl font-black">
+                      {(pending * (exchangeRate?.promedio || 0)).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div className="col-span-2 pt-2 border-t border-white/10 flex justify-between items-center text-[10px] text-indigo-100/80 italic">
+                    <span>Tasa: {(exchangeRate?.promedio || 0).toFixed(2)} Bs/$</span>
+                    <span>Corte: {commission?.cutId || 'N/A'}</span>
+                  </div>
                 </div>
               </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  onClick={() => {
-                    setShowPaymentModal(null);
-                    setPaymentAmount('');
-                  }}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => handleAddPayment(showPaymentModal)}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                >
-                  Procesar Pago
-                </button>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Monto (USD)</label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    onClick={() => {
+                      setShowPaymentModal(null);
+                      setPaymentAmount('');
+                    }}
+                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => handleAddPayment(showPaymentModal)}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    Procesar Pago
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

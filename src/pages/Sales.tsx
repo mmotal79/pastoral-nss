@@ -1139,16 +1139,38 @@ export default function Sales() {
       {paymentModalSale && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-4 border-b flex justify-between items-center bg-gray-50">
-              <h2 className="text-lg font-bold text-gray-900">Registrar Abono</h2>
-              <button onClick={() => setPaymentModalSale(null)} className="text-gray-500 hover:text-gray-700">
-                <X className="w-5 h-5" />
-              </button>
+            <div className="bg-indigo-600 p-6 text-white">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h2 className="text-xl font-bold">Registrar Abono</h2>
+                  <p className="text-indigo-100 text-sm flex items-center mt-1">
+                    <Users className="w-4 h-4 mr-1" />
+                    {getClient(paymentModalSale.clientId)?.name || 'Cliente'}
+                  </p>
+                </div>
+                <button onClick={() => setPaymentModalSale(null)} className="text-indigo-100 hover:text-white transition-colors">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/20">
+                <div>
+                  <p className="text-indigo-100 text-[10px] uppercase font-bold tracking-wider mb-1">Deuda en USD</p>
+                  <p className="text-2xl font-black">${(paymentModalSale.totalUSD - calculatePaid(paymentModalSale)).toFixed(2)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-indigo-100 text-[10px] uppercase font-bold tracking-wider mb-1">Deuda en Bs.</p>
+                  <p className="text-2xl font-black">
+                    {((paymentModalSale.totalUSD - calculatePaid(paymentModalSale)) * (Number(paymentExchangeRate) || 0)).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="col-span-2 pt-2 border-t border-white/10 flex justify-between items-center text-[10px] text-indigo-100/80 italic">
+                  <span>Tasa del día: {Number(paymentExchangeRate).toFixed(2)} Bs/$</span>
+                  <span>Conversión automática</span>
+                </div>
+              </div>
             </div>
             <div className="p-6 overflow-y-auto space-y-4">
-              <div className="bg-blue-50 p-3 rounded-md text-sm text-blue-800">
-                Deuda actual: <strong>${(paymentModalSale.totalUSD - calculatePaid(paymentModalSale)).toFixed(2)}</strong>
-              </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700">Método de Pago</label>
