@@ -554,56 +554,65 @@ export default function Sales() {
     }
   };
 
-  // Filtered Sales
-  const filteredSales = useMemo(() => {
-    const filtersActive = appliedFilters.dateFrom || appliedFilters.dateTo || appliedFilters.filterClient || appliedFilters.filterStatus || appliedFilters.filterProduct;
+  // Filtered Sales and Statistics combined for consistency
+  const { filteredSales, stats } = useMemo(() => {
+    // Check if any specific filter is active
+    const isDateFiltered = !!(appliedFilters.dateFrom || appliedFilters.dateTo);
+    const isClientFiltered = !!appliedFilters.filterClient;
+    const isStatusFiltered = !!appliedFilters.filterStatus;
+    const isProductFiltered = !!appliedFilters.filterProduct;
+    const filtersActive = isDateFiltered || isClientFiltered || isStatusFiltered || isProductFiltered;
 
-    return sales.filter(sale => {
+    const filtered = sales.filter(sale => {
       // Role-based filtering: Sellers only see their own sales
-      if (isSeller && sale.sellerId !== (currentUser?.id || currentUser?._id)) {
+      const saleSellerId = typeof sale.sellerId === 'object' ? sale.sellerId?._id : sale.sellerId;
+      if (isSeller && saleSellerId !== (currentUser?.id || currentUser?._id)) {
         return false;
       }
 
+      // Helper to parse sale date safely
+      const saleDate = new Date(sale.date);
+      // Normalized date for comparisons (start of day)
+      const normalizedSaleDate = startOfDay(saleDate);
+
       if (filtersActive) {
         let match = true;
+        
         if (appliedFilters.dateFrom) {
-          if (new Date(sale.date) < startOfDay(parseISO(appliedFilters.dateFrom))) match = false;
+          if (normalizedSaleDate < startOfDay(parseISO(appliedFilters.dateFrom))) match = false;
         }
         if (appliedFilters.dateTo) {
-          if (new Date(sale.date) > endOfDay(parseISO(appliedFilters.dateTo))) match = false;
+          if (normalizedSaleDate > endOfDay(parseISO(appliedFilters.dateTo))) match = false;
         }
         if (appliedFilters.filterClient) {
-          const saleClientId = typeof sale.clientId === 'string' ? sale.clientId : (sale.clientId?._id || sale.clientId?.id);
+          const saleClientId = typeof sale.clientId === 'object' ? sale.clientId?._id : sale.clientId;
           if (saleClientId !== appliedFilters.filterClient) match = false;
         }
         if (appliedFilters.filterStatus && sale.status !== appliedFilters.filterStatus) match = false;
         if (appliedFilters.filterProduct) {
-          const hasProduct = sale.items.some(item => item.name.toLowerCase().includes(appliedFilters.filterProduct.toLowerCase()));
+          const hasProduct = (sale.items || []).some(item => item.name.toLowerCase().includes(appliedFilters.filterProduct.toLowerCase()));
           if (!hasProduct) match = false;
         }
         return match;
       } else {
         // Carry-over logic when no filters are applied
-        const saleDate = new Date(sale.date);
         const monthStart = startOfMonth(parseISO(selectedMonth + '-01'));
-        const monthEnd = endOfMonth(monthStart);
-
+        
         // 1. Sales of the selected month
-        const isCurrentMonth = isSameMonth(saleDate, monthStart);
+        const isCurrentMonth = isSameMonth(normalizedSaleDate, monthStart);
         
         // 2. Sales of previous months with pending balance
-        const isPreviousMonth = isBefore(saleDate, monthStart);
-        const totalPaid = sale.payments.filter(p => p.status !== 'anulado').reduce((acc, p) => acc + p.amountUSD, 0);
+        const isPreviousMonth = isBefore(normalizedSaleDate, monthStart);
+        const totalPaid = (sale.payments || []).filter(p => p.status !== 'anulado').reduce((acc, p) => acc + (p.amountUSD || 0), 0);
         const hasPendingBalance = (sale.totalUSD - totalPaid) > 0.01;
 
         return isCurrentMonth || (isPreviousMonth && hasPendingBalance);
       }
     });
-  }, [sales, appliedFilters, selectedMonth, isSeller, currentUser]);
 
-  const stats = useMemo(() => {
+    // Calculate Statistics based on results
     // We ignore 'anulado' status for statistics
-    const activeSales = filteredSales.filter(s => s.status !== 'anulado');
+    const activeSales = filtered.filter(s => s.status !== 'anulado');
     const totalSalesCount = activeSales.length;
     const totalClientsCount = new Set(activeSales.map(s => {
       const cid = typeof s.clientId === 'object' ? s.clientId?._id : s.clientId;
@@ -614,21 +623,24 @@ export default function Sales() {
     let totalAmount = 0;
     
     activeSales.forEach(sale => {
-      totalAmount += sale.totalUSD;
+      totalAmount += sale.totalUSD || 0;
       const salePaid = (sale.payments || [])
         .filter(p => p.status !== 'anulado')
-        .reduce((acc, p) => acc + p.amountUSD, 0);
+        .reduce((acc, p) => acc + (p.amountUSD || 0), 0);
       totalPaid += salePaid;
     });
 
-    return {
-      totalClients: totalClientsCount,
-      totalSales: totalSalesCount,
-      totalAmount,
-      totalPaid,
-      totalPending: Math.max(0, totalAmount - totalPaid)
+    return { 
+      filteredSales: filtered,
+      stats: {
+        totalClients: totalClientsCount,
+        totalSales: totalSalesCount,
+        totalAmount,
+        totalPaid,
+        totalPending: Math.max(0, totalAmount - totalPaid)
+      }
     };
-  }, [filteredSales]);
+  }, [sales, appliedFilters, selectedMonth, isSeller, currentUser]);
 
   return (
     <div className="space-y-6 relative">
