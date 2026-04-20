@@ -46,7 +46,8 @@ export default function Expenses() {
         description: formData.description,
         amountUSD: Number(formData.amountUSD),
         date: getLocalDatetime(formData.date),
-        category: formData.category
+        category: formData.category,
+        exchangeRate: exchangeRate?.promedio || 0
       };
 
       if (editingExpense && editingExpense._id) {

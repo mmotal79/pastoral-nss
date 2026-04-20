@@ -8,6 +8,7 @@ export default function Settings() {
   const [companyName, setCompanyName] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [corporatePhone, setCorporatePhone] = useState('');
+  const [paymentInfo, setPaymentInfo] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -16,6 +17,7 @@ export default function Settings() {
       setCompanyName(settings.companyName || '');
       setLogoUrl(settings.logoUrl || '');
       setCorporatePhone(settings.corporatePhone || '');
+      setPaymentInfo(settings.paymentInfo || '');
     }
   }, [settings]);
 
@@ -37,7 +39,7 @@ export default function Settings() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateSettings({ companyName, logoUrl, corporatePhone });
+    await updateSettings({ companyName, logoUrl, corporatePhone, paymentInfo });
   };
 
   return (
@@ -71,6 +73,22 @@ export default function Settings() {
             />
             <p className="mt-1 text-xs text-gray-500">
               Este número se utilizará para que los clientes soliciten información desde el catálogo público. Incluye el código de país (ej. +58).
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Información para tickets (Cuentas bancarias, avisos, etc.)</label>
+            <textarea
+              value={paymentInfo}
+              onChange={(e) => setPaymentInfo(e.target.value)}
+              rows={4}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
+              placeholder="Ej. Cuentas bancarias:
+Banesco: 0134-XXXX-XXXX-XXXX
+Pago Móvil: 0414-XXXXXXX V-XXXXXXXX"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Esta información aparecerá al final de los comprobantes de venta y abono compartidos con los clientes.
             </p>
           </div>
 

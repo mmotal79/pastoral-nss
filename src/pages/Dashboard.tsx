@@ -14,11 +14,18 @@ const parseDisplayDate = (dateString: string) => {
 };
 
 export default function Dashboard() {
-  const { sales, expenses, exchangeRate } = useAppContext();
+  const { sales, expenses, exchangeRate, loading, refreshData } = useAppContext();
   
   const [dateFrom, setDateFrom] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [dateTo, setDateTo] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshData();
+    setIsRefreshing(false);
+  };
 
   const filteredSales = useMemo(() => {
     return sales.filter(sale => {
@@ -80,60 +87,76 @@ export default function Dashboard() {
               <div className="text-xs text-gray-500">Actualizado: {new Date(exchangeRate.fechaActualizacion).toLocaleDateString()}</div>
             </div>
           )}
-          <button
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <Filter className="w-4 h-4" />
-            Filtrar por Fecha
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing || loading}
+              className={`p-1.5 bg-white border border-gray-300 rounded-md shadow-sm text-gray-700 hover:bg-gray-50 ${(isRefreshing || loading) ? 'opacity-50' : ''}`}
+              title="Actualizar Datos"
+            >
+              <Clock className={`w-4 h-4 ${isRefreshing || (loading && !isRefreshing) ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Filter className="w-4 h-4" />
+              Filtrar por Fecha
+            </button>
+          </div>
         </div>
       </div>
 
-      {isFilterOpen && (
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-wrap gap-4 items-end">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            />
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                setDateFrom('');
-                setDateTo('');
-              }}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Limpiar
-            </button>
-            <button
-              onClick={() => {
-                setDateFrom(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-                setDateTo(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
-              }}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Mes Actual
-            </button>
-          </div>
+      {loading && !isRefreshing ? (
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
         </div>
-      )}
-      
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      ) : (
+        <>
+          {isFilterOpen && (
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-wrap gap-4 items-end animate-in fade-in slide-in-from-top-1">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setDateFrom('');
+                    setDateTo('');
+                  }}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Limpiar
+                </button>
+                <button
+                  onClick={() => {
+                    setDateFrom(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+                    setDateTo(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+                  }}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Mes Actual
+                </button>
+              </div>
+            </div>
+          )}
+          
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
@@ -213,6 +236,8 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
       </div>
-    </div>
-  );
+    </>
+    )}
+  </div>
+);
 }

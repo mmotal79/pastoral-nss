@@ -274,6 +274,7 @@ router.put('/settings', async (req, res) => {
       settings.companyName = req.body.companyName || settings.companyName;
       settings.logoUrl = req.body.logoUrl !== undefined ? req.body.logoUrl : settings.logoUrl;
       settings.corporatePhone = req.body.corporatePhone !== undefined ? req.body.corporatePhone : settings.corporatePhone;
+      settings.paymentInfo = req.body.paymentInfo !== undefined ? req.body.paymentInfo : settings.paymentInfo;
       await settings.save();
     } else {
       settings = await Settings.create(req.body);
@@ -542,8 +543,14 @@ router.put('/sales/:id', async (req, res) => {
 
 router.delete('/sales/:id', async (req, res) => {
   try {
+    const isPermanent = req.query.permanent === 'true';
     const sale = await Sale.findById(req.params.id);
     if (!sale) return res.status(404).json({ error: 'Venta no encontrada' });
+
+    if (isPermanent) {
+      await Sale.findByIdAndDelete(req.params.id);
+      return res.json({ success: true, message: 'Venta eliminada permanentemente' });
+    }
 
     if (sale.status === 'anulado') {
       return res.status(400).json({ error: 'La venta ya se encuentra anulada' });

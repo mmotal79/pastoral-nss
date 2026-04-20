@@ -92,6 +92,7 @@ export interface Settings {
   companyName: string;
   logoUrl: string;
   corporatePhone?: string;
+  paymentInfo?: string;
 }
 
 export interface Commission {
@@ -590,12 +591,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteSale = async (id: string) => {
     try {
-      const res = await fetch(`/api/sales/${id}`, {
+      const sale = sales.find(s => s._id === id || s.id === id);
+      const isAlreadyAnulado = sale?.status === 'anulado';
+
+      const res = await fetch(`/api/sales/${id}${isAlreadyAnulado ? '?permanent=true' : ''}`, {
         method: 'DELETE'
       });
       if (res.ok) {
         setSales(prev => prev.filter(s => s._id !== id));
-        alert('Venta eliminada exitosamente');
+        alert(isAlreadyAnulado ? 'Venta eliminada permanentemente.' : 'Venta anulada exitosamente');
         fetchData(); // Refresh to update stock
       } else {
         const errorData = await res.json().catch(() => ({}));
@@ -609,10 +613,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addExpense = async (expense: Partial<Expense>) => {
     try {
+      const expenseWithRate = {
+        ...expense,
+        exchangeRate: expense.exchangeRate || exchangeRate?.promedio || 0,
+        amountVED: expense.amountVED || (Number(expense.amountUSD || 0) * (exchangeRate?.promedio || 1))
+      };
       const res = await fetch('/api/expenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(expense)
+        body: JSON.stringify(expenseWithRate)
       });
       if (res.ok) {
         const newExpense = await res.json();

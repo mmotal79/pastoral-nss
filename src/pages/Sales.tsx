@@ -124,6 +124,7 @@ export default function Sales() {
         sellerId: currentUser?.id || currentUser?._id,
         payments: []
       });
+      await refreshData();
       setIsModalOpen(false);
       setFormData({ clientId: '', date: format(new Date(), 'yyyy-MM-dd') });
       setTempItems([]);
@@ -284,7 +285,7 @@ export default function Sales() {
         payments: updatedPayments,
         status: newStatus
       });
-
+      await refreshData();
       setPaymentModalSale(null);
       // Reset payment form
       setPaymentAmount('');
@@ -339,6 +340,7 @@ export default function Sales() {
     if (!window.confirm('¿Está seguro de anular esta venta? Se anularán todos los pagos, comisiones y gastos asociados.')) return;
     try {
       await deleteSale(id);
+      await refreshData();
     } catch (error) {
       console.error('Error annulling sale:', error);
     }
@@ -600,16 +602,23 @@ export default function Sales() {
   }, [sales, appliedFilters, selectedMonth, isSeller, currentUser]);
 
   const stats = useMemo(() => {
-    const allSales = filteredSales.filter(s => s.status !== 'anulado');
-    const totalSalesCount = allSales.length;
-    const totalClientsCount = new Set(allSales.map(s => s.clientId)).size;
+    // We ignore 'anulado' status for statistics
+    const activeSales = filteredSales.filter(s => s.status !== 'anulado');
+    const totalSalesCount = activeSales.length;
+    const totalClientsCount = new Set(activeSales.map(s => {
+      const cid = typeof s.clientId === 'object' ? s.clientId?._id : s.clientId;
+      return cid;
+    })).size;
     
     let totalPaid = 0;
     let totalAmount = 0;
     
-    allSales.forEach(sale => {
+    activeSales.forEach(sale => {
       totalAmount += sale.totalUSD;
-      totalPaid += sale.payments.filter(p => p.status !== 'anulado').reduce((acc, p) => acc + p.amountUSD, 0);
+      const salePaid = (sale.payments || [])
+        .filter(p => p.status !== 'anulado')
+        .reduce((acc, p) => acc + p.amountUSD, 0);
+      totalPaid += salePaid;
     });
 
     return {
@@ -1350,6 +1359,13 @@ export default function Sales() {
                 <p style={{ color: '#000000' }}>Pagado: <span style={{ color: '#16a34a' }}>${calculatePaid(selectedTicket).toFixed(2)}</span></p>
                 <p className="font-bold" style={{ color: '#000000' }}>DEUDA: <span style={{ color: '#dc2626' }}>${Math.max(0, selectedTicket.totalUSD - calculatePaid(selectedTicket)).toFixed(2)}</span></p>
               </div>
+
+              {settings?.paymentInfo && (
+                <div className="mt-6 pt-4 border-t border-dashed" style={{ borderColor: '#d1d5db' }}>
+                  <p className="text-[10px] font-bold mb-1" style={{ color: '#000000' }}>INFORMACIÓN DE PAGO:</p>
+                  <p className="text-[10px] whitespace-pre-wrap" style={{ color: '#374151' }}>{settings.paymentInfo}</p>
+                </div>
+              )}
               
               <div className="mt-8 text-center text-xs" style={{ color: '#6b7280' }}>
                 <p>¡Gracias por su compra!</p>
