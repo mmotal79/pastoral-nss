@@ -1365,10 +1365,12 @@ export default function Sales() {
                 </div>
               )}
 
-              <div className="text-right text-lg">
-                <p style={{ color: '#000000' }}>Pagado: <span style={{ color: '#16a34a' }}>${calculatePaid(selectedTicket).toFixed(2)}</span></p>
-                <p className="font-bold" style={{ color: '#000000' }}>DEUDA: <span style={{ color: '#dc2626' }}>${Math.max(0, selectedTicket.totalUSD - calculatePaid(selectedTicket)).toFixed(2)}</span></p>
-              </div>
+              {selectedTicket.payments.length > 0 && (
+                <div className="text-right text-lg">
+                  <p style={{ color: '#000000' }}>Pagado: <span style={{ color: '#16a34a' }}>${calculatePaid(selectedTicket).toFixed(2)}</span></p>
+                  <p className="font-bold" style={{ color: '#000000' }}>DEUDA: <span style={{ color: '#dc2626' }}>${Math.max(0, selectedTicket.totalUSD - calculatePaid(selectedTicket)).toFixed(2)}</span></p>
+                </div>
+              )}
 
               {settings?.paymentInfo && (
                 <div className="mt-6 pt-4 border-t border-dashed" style={{ borderColor: '#d1d5db' }}>
