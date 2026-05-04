@@ -1375,7 +1375,11 @@ export default function Sales() {
               {settings?.paymentInfo && (
                 <div className="mt-6 pt-4 border-t border-dashed" style={{ borderColor: '#d1d5db' }}>
                   <h3 className="font-bold mb-2" style={{ color: '#000000' }}>INFORMACIÓN DE PAGO:</h3>
-                  <p className="text-sm whitespace-pre-wrap" style={{ color: '#374151' }}>{settings.paymentInfo}</p>
+                  <div 
+                    className="text-sm rich-text-content" 
+                    style={{ color: '#000000' }}
+                    dangerouslySetInnerHTML={{ __html: settings.paymentInfo }}
+                  />
                 </div>
               )}
               

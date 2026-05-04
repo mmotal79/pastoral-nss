@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { Save, Image as ImageIcon, Upload } from 'lucide-react';
 import { compressImage } from '../utils/imageUtils';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 
 export default function Settings() {
   const { settings, updateSettings } = useAppContext();
@@ -42,6 +44,18 @@ export default function Settings() {
     await updateSettings({ companyName, logoUrl, corporatePhone, paymentInfo });
   };
 
+  const modules = {
+    toolbar: [
+      ['bold', 'italic', 'underline'],
+      [{ 'align': [] }],
+      ['clean']
+    ],
+  };
+
+  const formats = [
+    'bold', 'italic', 'underline', 'align'
+  ];
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -77,17 +91,18 @@ export default function Settings() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Información para tickets (Cuentas bancarias, avisos, etc.)</label>
-            <textarea
-              value={paymentInfo}
-              onChange={(e) => setPaymentInfo(e.target.value)}
-              rows={4}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
-              placeholder="Ej. Cuentas bancarias:
-Banesco: 0134-XXXX-XXXX-XXXX
-Pago Móvil: 0414-XXXXXXX V-XXXXXXXX"
-            />
-            <p className="mt-1 text-xs text-gray-500">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Información para tickets (Cuentas bancarias, avisos, etc.)</label>
+            <div className="mt-1">
+              <ReactQuill 
+                theme="snow"
+                value={paymentInfo}
+                onChange={setPaymentInfo}
+                modules={modules}
+                formats={formats}
+                className="h-48 mb-12"
+              />
+            </div>
+            <p className="mt-1 text-xs text-gray-500 pt-2">
               Esta información aparecerá al final de los comprobantes de venta y abono compartidos con los clientes.
             </p>
           </div>

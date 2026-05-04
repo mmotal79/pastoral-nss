@@ -1,1 +1,21 @@
 @import "tailwindcss";
+
+@layer base {
+  .ql-align-center {
+    text-align: center;
+  }
+  .ql-align-right {
+    text-align: right;
+  }
+  .ql-align-justify {
+    text-align: justify;
+  }
+  
+  /* Reset some default Quill paragraph margins for the ticket */
+  .rich-text-content p {
+    margin-bottom: 0.25rem;
+  }
+  .rich-text-content p:last-child {
+    margin-bottom: 0;
+  }
+}
