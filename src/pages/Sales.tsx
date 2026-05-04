@@ -1327,9 +1327,9 @@ export default function Sales() {
                 <p className="text-lg font-bold" style={{ color: '#000000' }}>TOTAL: ${selectedTicket.totalUSD.toFixed(2)}</p>
               </div>
 
-              <div className="mb-4">
-                <h3 className="font-bold mb-2" style={{ color: '#000000' }}>Historial de Pagos (Abonos):</h3>
-                {selectedTicket.payments.length > 0 ? (
+              {selectedTicket.payments.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="font-bold mb-2" style={{ color: '#000000' }}>Historial de Pagos (Abonos):</h3>
                   <ul className="space-y-2">
                     {selectedTicket.payments.map(p => (
                       <li key={p.id} className="text-xs p-2 rounded" style={{ backgroundColor: '#f9fafb' }}>
@@ -1362,10 +1362,8 @@ export default function Sales() {
                       </li>
                     ))}
                   </ul>
-                ) : (
-                  <p className="italic" style={{ color: '#6b7280' }}>No hay pagos registrados.</p>
-                )}
-              </div>
+                </div>
+              )}
 
               <div className="text-right text-lg">
                 <p style={{ color: '#000000' }}>Pagado: <span style={{ color: '#16a34a' }}>${calculatePaid(selectedTicket).toFixed(2)}</span></p>
@@ -1374,8 +1372,8 @@ export default function Sales() {
 
               {settings?.paymentInfo && (
                 <div className="mt-6 pt-4 border-t border-dashed" style={{ borderColor: '#d1d5db' }}>
-                  <p className="text-[10px] font-bold mb-1" style={{ color: '#000000' }}>INFORMACIÓN DE PAGO:</p>
-                  <p className="text-[10px] whitespace-pre-wrap" style={{ color: '#374151' }}>{settings.paymentInfo}</p>
+                  <h3 className="font-bold mb-2" style={{ color: '#000000' }}>INFORMACIÓN DE PAGO:</h3>
+                  <p className="text-sm whitespace-pre-wrap" style={{ color: '#374151' }}>{settings.paymentInfo}</p>
                 </div>
               )}
               
